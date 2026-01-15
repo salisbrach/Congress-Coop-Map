@@ -48,4 +48,225 @@ header p { font-size:14px; opacity:.9; }
     min-width:200px;
 }
 
-.data-section { padding:20px; border-top:2px solid #e0e0e0;
+.data-section { padding:20px; border-top:2px solid #e0e0e0; }
+.filter-container { margin-bottom:20px; }
+
+table {
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+}
+
+th {
+    background:#f5f5f5;
+    padding:12px;
+    text-align:left;
+    font-weight:600;
+    border-bottom:2px solid #ddd;
+    cursor:pointer;
+}
+
+td { padding:10px 12px; border-bottom:1px solid #e0e0e0; }
+tr:hover { background:#f9f9f9; }
+
+.sortable::after { content:' ⇅'; opacity:.3; }
+.sort-asc::after { content:' ↑'; opacity:1; }
+.sort-desc::after { content:' ↓'; opacity:1; }
+
+a { color:#6360F0; text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+#pagination {
+    margin-top:15px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.pagination-buttons button {
+    padding:6px 12px;
+    border:1px solid #ddd;
+    background:white;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+.pagination-buttons button:disabled {
+    background:#00005B;
+    color:white;
+    cursor:default;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+<header>
+    <img src="pleiades logo white.png">
+    <div>
+        <h1>Congressional Districts Electric Cooperatives Coverage</h1>
+        <p>Interactive map showing electric cooperative population coverage</p>
+    </div>
+</header>
+
+<div id="mainContent">
+<div class="map-container">
+    <div id="map"></div>
+</div>
+
+<div class="data-section">
+<div class="filter-container">
+<label>Filter by State:</label>
+<select id="stateFilter" onchange="filterTable()">
+<option value="">All States</option>
+</select>
+</div>
+
+<table id="dataTable">
+<thead>
+<tr>
+<th>District</th>
+<th>Representative</th>
+<th class="sortable" onclick="sortTable('population')">Total Population</th>
+<th class="sortable" onclick="sortTable('coopPopulation')">Coop Population</th>
+<th class="sortable" onclick="sortTable('percentage')">Coverage %</th>
+<th>NRECA Data</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<div id="pagination">
+    <div id="pageInfo"></div>
+    <div class="pagination-buttons" id="pageButtons"></div>
+</div>
+
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<script>
+const rowsPerPage = 25;
+let currentPage = 1;
+let currentSort = { column:null, direction:'asc' };
+let districtData = [];
+
+function populateTable() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    districtData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.dataset.state = row.State;
+        tr.dataset.population = parseInt(row['Total Population'].replace(/,/g,''));
+        tr.dataset.coopPopulation = parseInt(row['Coop Population'].replace(/,/g,''));
+        tr.dataset.percentage = parseFloat(row['Ratio Coop Service'].replace('%',''));
+
+        tr.innerHTML = `
+            <td>${row.State} - ${row['District Number']}</td>
+            <td><a href="${row['Representative website link']}" target="_blank">${row.Representative}</a></td>
+            <td>${row['Total Population']}</td>
+            <td>${row['Coop Population']}</td>
+            <td>${row['Ratio Coop Service']}</td>
+            <td><a href="${row['Coop info link']}" target="_blank">View</a></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    currentPage = 1;
+    paginateTable();
+}
+
+function paginateTable() {
+    const rows = Array.from(document.querySelectorAll('#tableBody tr'))
+        .filter(r => r.dataset.filtered !== 'true');
+
+    const total = rows.length;
+    const totalPages = Math.ceil(total / rowsPerPage);
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = Math.min(start + rowsPerPage, total);
+
+    rows.forEach((row, i) => {
+        row.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+
+    document.getElementById('pageInfo').textContent =
+        `Showing ${start + 1}–${end} of ${total} entries`;
+
+    renderPaginationControls(totalPages);
+}
+
+function renderPaginationControls(totalPages) {
+    const c = document.getElementById('pageButtons');
+    c.innerHTML = '';
+
+    const prev = document.createElement('button');
+    prev.textContent = 'Previous';
+    prev.disabled = currentPage === 1;
+    prev.onclick = () => { currentPage--; paginateTable(); };
+
+    const next = document.createElement('button');
+    next.textContent = 'Next';
+    next.disabled = currentPage === totalPages;
+    next.onclick = () => { currentPage++; paginateTable(); };
+
+    c.appendChild(prev);
+    c.appendChild(next);
+}
+
+function sortTable(column) {
+    const tbody = document.getElementById('tableBody');
+    const rows = Array.from(tbody.children);
+
+    currentSort.direction =
+        currentSort.column === column && currentSort.direction === 'asc'
+        ? 'desc' : 'asc';
+    currentSort.column = column;
+
+    rows.sort((a,b) =>
+        currentSort.direction === 'asc'
+        ? a.dataset[column] - b.dataset[column]
+        : b.dataset[column] - a.dataset[column]
+    );
+
+    tbody.innerHTML = '';
+    rows.forEach(r => tbody.appendChild(r));
+
+    currentPage = 1;
+    paginateTable();
+}
+
+function filterTable() {
+    const selected = document.getElementById('stateFilter').value;
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+        row.dataset.filtered = (selected && row.dataset.state !== selected);
+    });
+    currentPage = 1;
+    paginateTable();
+}
+
+Papa.parse('districts.csv', {
+    download:true,
+    header:true,
+    complete: r => {
+        districtData = r.data;
+        populateTable();
+        populateStateFilter();
+    }
+});
+
+function populateStateFilter() {
+    const select = document.getElementById('stateFilter');
+    [...new Set(districtData.map(d => d.State))].sort().forEach(s => {
+        const o = document.createElement('option');
+        o.value = s;
+        o.textContent = s;
+        select.appendChild(o);
+    });
+}
+</script>
+</body>
+</html>
