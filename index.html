@@ -245,9 +245,9 @@
                                 <th>District</th>
                                 <th>Representative</th>
                                 <th>Total Population</th>
-                                <th>Population Served by Electric Coops</th>
-                                <th>Coops Coverage %</th>
-                                <th>NRECA District Coop Data</th>
+                                <th>Coop Population</th>
+                                <th>Coverage %</th>
+                                <th>More Info</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
@@ -454,9 +454,9 @@
                             <div class="tooltip">
                                 <strong>${data['Abbreviation']}-${data['District Number']}</strong>
                                 <a href="${data['Representative website link']}" target="_blank">${data['Representative']}</a><br>
-                                <strong>Total Population:</strong> ${data['Total Population']}<br>
-                                <strong>Population Served by Electric Coops:</strong> ${data['Coop Population']}<br>
-                                <strong>Percentage of Population Served by Electric Coops:</strong> ${data['Ratio Coop Service']}<br>
+                                <strong>Total Population:</strong> ${formatNumber(parseInt(data['Total Population'].replace(/,/g, '')))}<br>
+                                <strong>Coop Population:</strong> ${formatNumber(parseInt(data['Coop Population'].replace(/,/g, '')))}<br>
+                                <strong>Coverage:</strong> ${data['Ratio Coop Service']}<br>
                                 <a href="${data['Coop info link']}" target="_blank">Read NRECA's data about cooperatives in this district.</a>
                             </div>
                         `;
@@ -504,11 +504,11 @@
                 
                 tr.innerHTML = `
                     <td>${stateName} - ${district}</td>
-                    <td><a href="${row['Representative website link']}" target="_blank">${row['Representative']}</a></td>
-                    <td>${row['Total Population']))}</td>
-                    <td>${row['Population Served by Electric Coops']))}</td>
-                    <td>${(parseFloat(row['Percentage of Population Served by Electric Coops'])).toFixed(2)}%</td>
-                    <td><a href="${row['Coop info link']}" target="_blank">View district coop data</a></td>
+                    <td><a href="${row['Representative Website Link']}" target="_blank">${row['Representative']}</a></td>
+                    <td>${formatNumber(parseInt(row['Total Population']))}</td>
+                    <td>${formatNumber(parseInt(row['Coop Population']))}</td>
+                    <td>${(parseFloat(row['Ratio Coop Service']) * 100).toFixed(2)}%</td>
+                    <td><a href="${row['Coop info link']}" target="_blank">View Info</a></td>
                 `;
                 tr.dataset.state = stateName;
                 tbody.appendChild(tr);
