@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Congressional Districts - Electric Cooperatives Coverage</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -47,12 +49,27 @@
         .map-container {
             position: relative;
             padding: 20px;
+            background: white;
         }
         
         #map {
+            width: 100%;
             height: 600px;
-            border-radius: 8px;
             border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .district {
+            stroke: #666;
+            stroke-width: 0.5;
+            cursor: pointer;
+            transition: stroke-width 0.2s;
+        }
+        
+        .district:hover {
+            stroke: #000;
+            stroke-width: 2;
         }
         
         .legend {
@@ -93,6 +110,36 @@
             justify-content: space-between;
             font-size: 11px;
             color: #666;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none;
+            font-size: 13px;
+            line-height: 1.6;
+            max-width: 300px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .tooltip strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #00005B;
+        }
+        
+        .tooltip a {
+            color: #6360F0;
+            text-decoration: none;
+        }
+        
+        .tooltip a:hover {
+            text-decoration: underline;
         }
         
         .controls {
@@ -176,22 +223,6 @@
             text-decoration: underline;
         }
         
-        .tooltip {
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            font-size: 13px;
-            line-height: 1.6;
-        }
-        
-        .tooltip strong {
-            display: block;
-            font-size: 14px;
-            margin-bottom: 8px;
-            color: #00005B;
-        }
-        
         .loading {
             text-align: center;
             padding: 40px;
@@ -212,7 +243,7 @@
         
         <div id="mainContent" style="display: none;">
             <div class="map-container">
-                <div id="map"></div>
+                <svg id="map"></svg>
                 <div class="legend">
                     <h4>Co-op Coverage Ratio</h4>
                     <div class="legend-gradient"></div>
@@ -224,6 +255,7 @@
                         <span>100%</span>
                     </div>
                 </div>
+                <div class="tooltip" id="tooltip"></div>
             </div>
             
             <div class="controls">
@@ -258,14 +290,9 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script>
-        let map;
         let districtData = [];
         let geoJsonData = null;
-        let geoJsonLayer = null;
         const stateNames = {
             'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
             'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
@@ -280,30 +307,6 @@
             'DC': 'District of Columbia', 'PR': 'Puerto Rico', 'VI': 'U.S. Virgin Islands', 
             'GU': 'Guam', 'AS': 'American Samoa', 'MP': 'Northern Mariana Islands'
         };
-
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            // Wait for Leaflet to fully load
-            if (typeof L !== 'undefined') {
-                initMap();
-                loadData();
-            } else {
-                // If L is not defined yet, wait a bit longer
-                setTimeout(function() {
-                    initMap();
-                    loadData();
-                }, 500);
-            }
-        });
-
-        // Initialize map
-        function initMap() {
-            map = L.map('map').setView([39.8283, -98.5795], 4);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-                maxZoom: 19
-            }).addTo(map);
-        }
 
         // Color interpolation
         function getColor(ratio) {
@@ -336,19 +339,15 @@
             return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
         }
 
-        // Format numbers
         function formatNumber(num) {
             return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        // Load data from files
+        // Load data
         async function loadData() {
             try {
                 // Load CSV
                 const csvResponse = await fetch('districts.csv');
-                if (!csvResponse.ok) {
-                    throw new Error(`CSV fetch failed: ${csvResponse.status} ${csvResponse.statusText}`);
-                }
                 const csvText = await csvResponse.text();
                 
                 Papa.parse(csvText, {
@@ -356,145 +355,99 @@
                     skipEmptyLines: true,
                     complete: function(results) {
                         console.log('CSV loaded, rows:', results.data.length);
-                        console.log('First row:', results.data[0]);
                         districtData = results.data;
                         checkDataLoaded();
-                    },
-                    error: function(error) {
-                        console.error('Error parsing CSV:', error);
-                        document.getElementById('loadingMessage').textContent = 'Error parsing CSV data: ' + error;
                     }
                 });
                 
                 // Load GeoJSON
                 const geoResponse = await fetch('districts.geojson');
-                if (!geoResponse.ok) {
-                    throw new Error(`GeoJSON fetch failed: ${geoResponse.status} ${geoResponse.statusText}`);
-                }
                 geoJsonData = await geoResponse.json();
-                console.log('GeoJSON loaded, features:', geoJsonData.features?.length);
+                console.log('GeoJSON loaded, features:', geoJsonData.features.length);
                 checkDataLoaded();
                 
             } catch (error) {
                 console.error('Error loading data:', error);
-                document.getElementById('loadingMessage').innerHTML = 'Error loading data files: ' + error.message + '<br>Please ensure districts.csv and districts.geojson are in the same directory as index.html';
+                document.getElementById('loadingMessage').textContent = 'Error loading data files: ' + error.message;
             }
         }
 
         function checkDataLoaded() {
-            console.log('checkDataLoaded called - districtData length:', districtData.length, 'geoJsonData:', !!geoJsonData);
             if (districtData.length > 0 && geoJsonData) {
-                console.log('Both datasets loaded, rendering...');
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
-                try {
-                    console.log('Calling renderMap...');
-                    renderMap();
-                    console.log('renderMap completed');
-                } catch (e) {
-                    console.error('Error in renderMap:', e);
-                }
-                try {
-                    console.log('Calling populateTable...');
-                    populateTable();
-                    console.log('populateTable completed');
-                } catch (e) {
-                    console.error('Error in populateTable:', e);
-                }
-                try {
-                    console.log('Calling populateStateFilter...');
-                    populateStateFilter();
-                    console.log('populateStateFilter completed');
-                } catch (e) {
-                    console.error('Error in populateStateFilter:', e);
-                }
+                renderMap();
+                populateTable();
+                populateStateFilter();
             }
+        }
+
+        function findDistrictData(stateName, district) {
+            const districtStr = String(district).padStart(2, '0');
+            const match = districtData.find(d => {
+                const stateMatch = d['State'] === stateName;
+                const districtMatch = d['District Number'].padStart(2, '0') === districtStr;
+                return stateMatch && districtMatch;
+            });
+            return match;
         }
 
         function renderMap() {
-            console.log('renderMap: starting, geoJsonLayer exists:', !!geoJsonLayer);
-            if (geoJsonLayer) {
-                map.removeLayer(geoJsonLayer);
-            }
+            const width = 960;
+            const height = 600;
+            
+            const svg = d3.select("#map")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet");
 
-            console.log('renderMap: creating geoJSON layer with', geoJsonData.features.length, 'features');
-            
-            // Log first feature to see its properties
-            if (geoJsonData.features.length > 0) {
-                console.log('First GeoJSON feature properties:', geoJsonData.features[0].properties);
-            }
-            
-            geoJsonLayer = L.geoJSON(geoJsonData, {
-                style: function(feature) {
-                    const data = findDistrictData(feature);
-                    let ratio = 0;
-                    
+            const projection = d3.geoAlbersUsa()
+                .scale(1200)
+                .translate([width / 2, height / 2]);
+
+            const path = d3.geoPath().projection(projection);
+
+            const tooltip = d3.select("#tooltip");
+
+            svg.selectAll("path")
+                .data(geoJsonData.features)
+                .enter()
+                .append("path")
+                .attr("d", path)
+                .attr("class", "district")
+                .attr("fill", d => {
+                    const data = findDistrictData(d.properties.STATENAME, d.properties.DISTRICT);
                     if (data && data['Ratio Coop Service']) {
                         const ratioStr = data['Ratio Coop Service'].replace('%', '');
-                        ratio = parseFloat(ratioStr) / 100;
+                        const ratio = parseFloat(ratioStr) / 100;
+                        return getColor(ratio);
                     }
-                    
-                    return {
-                        fillColor: getColor(ratio),
-                        weight: 1,
-                        opacity: 1,
-                        color: '#666',
-                        fillOpacity: 0.7
-                    };
-                },
-                onEachFeature: function(feature, layer) {
-                    const data = findDistrictData(feature);
-                    
+                    return '#f0f0f0';
+                })
+                .on("mouseover", function(event, d) {
+                    const data = findDistrictData(d.properties.STATENAME, d.properties.DISTRICT);
                     if (data) {
-                        const tooltipContent = `
-                            <div class="tooltip">
+                        tooltip.style("display", "block")
+                            .html(`
                                 <strong>${data['Abbreviation']}-${data['District Number']}</strong>
                                 <a href="${data['Representative website link']}" target="_blank">${data['Representative']}</a><br>
-                                <strong>Total Population:</strong> ${formatNumber(parseInt(data['Total Population'].replace(/,/g, '')))}<br>
-                                <strong>Coop Population:</strong> ${formatNumber(parseInt(data['Coop Population'].replace(/,/g, '')))}<br>
+                                <strong>Total Population:</strong> ${data['Total Population']}<br>
+                                <strong>Coop Population:</strong> ${data['Coop Population']}<br>
                                 <strong>Coverage:</strong> ${data['Ratio Coop Service']}<br>
                                 <a href="${data['Coop info link']}" target="_blank">Read NRECA's data about cooperatives in this district.</a>
-                            </div>
-                        `;
-                        
-                        layer.bindTooltip(tooltipContent, {
-                            sticky: true,
-                            className: 'custom-tooltip'
-                        });
-                        
-                        layer.on('mouseover', function() {
-                            this.setStyle({
-                                weight: 3,
-                                color: '#000',
-                                fillOpacity: 0.9
-                            });
-                        });
-                        
-                        layer.on('mouseout', function() {
-                            geoJsonLayer.resetStyle(this);
-                        });
+                            `)
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY - 28) + "px");
                     }
-                }
-            }).addTo(map);
-        }
-
-        function findDistrictData(feature) {
-            if (feature && feature.properties) {
-                const stateName = feature.properties.STATENAME;
-                const district = String(feature.properties.DISTRICT).padStart(2, '0');
-                
-                const match = districtData.find(d => {
-                    const stateMatch = d['State'] === stateName;
-                    const districtMatch = d['District Number'].padStart(2, '0') === district;
-                    return stateMatch && districtMatch;
+                })
+                .on("mousemove", function(event) {
+                    tooltip.style("left", (event.pageX + 10) + "px")
+                           .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.style("display", "none");
                 });
-                
-                if (!match) {
-                    console.log('No match found for:', stateName, district);
-                }
-                return match;
-            }
-            return null;
         }
 
         function populateTable() {
@@ -563,6 +516,9 @@
                 link.click();
             });
         }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
 </html>
