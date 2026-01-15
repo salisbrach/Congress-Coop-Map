@@ -392,7 +392,12 @@
                     const districtId = feature.properties.GEOID || feature.properties.geoid || 
                                       feature.properties.DISTRICT_ID || feature.properties.district_id;
                     const data = findDistrictData(districtId);
-                    const ratio = data ? parseFloat(data['Ratio Coop Service']) : 0;
+                    let ratio = 0;
+                    
+                    if (data && data['Ratio Coop Service']) {
+                        const ratioStr = data['Ratio Coop Service'].replace('%', '');
+                        ratio = parseFloat(ratioStr) / 100;
+                    }
                     
                     return {
                         fillColor: getColor(ratio),
@@ -411,10 +416,10 @@
                         const tooltipContent = `
                             <div class="tooltip">
                                 <strong>${data['Abbreviation']}-${data['District Number']}</strong>
-                                <a href="${data['Representative Website Link']}" target="_blank">${data['Representative']}</a><br>
-                                <strong>Total Population:</strong> ${formatNumber(parseInt(data['Total Population']))}<br>
-                                <strong>Coop Population:</strong> ${formatNumber(parseInt(data['Coop Population']))}<br>
-                                <strong>Coverage:</strong> ${(parseFloat(data['Ratio Coop Service']) * 100).toFixed(2)}%<br>
+                                <a href="${data['Representative website link']}" target="_blank">${data['Representative']}</a><br>
+                                <strong>Total Population:</strong> ${formatNumber(parseInt(data['Total Population'].replace(/,/g, '')))}<br>
+                                <strong>Coop Population:</strong> ${formatNumber(parseInt(data['Coop Population'].replace(/,/g, '')))}<br>
+                                <strong>Coverage:</strong> ${data['Ratio Coop Service']}<br>
                                 <a href="${data['Coop info link']}" target="_blank">Read NRECA's data about cooperatives in this district.</a>
                             </div>
                         `;
@@ -474,8 +479,8 @@
             const states = new Set();
             
             districtData.forEach(row => {
-                const stateName = stateNames[row['Abbreviation']] || row['Abbreviation'];
-                states.add(stateName);
+                const stateName = row['State'];
+                if (stateName) states.add(stateName);
             });
             
             Array.from(states).sort().forEach(state => {
