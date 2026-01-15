@@ -426,9 +426,7 @@
             
             geoJsonLayer = L.geoJSON(geoJsonData, {
                 style: function(feature) {
-                    const districtId = feature.properties.GEOID || feature.properties.geoid || 
-                                      feature.properties.DISTRICT_ID || feature.properties.district_id;
-                    const data = findDistrictData(districtId);
+                    const data = findDistrictData(feature);
                     let ratio = 0;
                     
                     if (data && data['Ratio Coop Service']) {
@@ -445,9 +443,7 @@
                     };
                 },
                 onEachFeature: function(feature, layer) {
-                    const districtId = feature.properties.GEOID || feature.properties.geoid || 
-                                      feature.properties.DISTRICT_ID || feature.properties.district_id;
-                    const data = findDistrictData(districtId);
+                    const data = findDistrictData(feature);
                     
                     if (data) {
                         const tooltipContent = `
@@ -482,15 +478,23 @@
             }).addTo(map);
         }
 
-        function findDistrictData(districtId) {
-            const match = districtData.find(d => {
-                const dataId = d['Abbreviation'] + (d['District Number'] || '00').padStart(2, '0');
-                return dataId === districtId || d['GEOID'] === districtId;
-            });
-            if (!match) {
-                console.log('No match found for districtId:', districtId);
+        function findDistrictData(feature) {
+            if (feature && feature.properties) {
+                const stateName = feature.properties.STATENAME;
+                const district = String(feature.properties.DISTRICT).padStart(2, '0');
+                
+                const match = districtData.find(d => {
+                    const stateMatch = d['State'] === stateName;
+                    const districtMatch = d['District Number'].padStart(2, '0') === district;
+                    return stateMatch && districtMatch;
+                });
+                
+                if (!match) {
+                    console.log('No match found for:', stateName, district);
+                }
+                return match;
             }
-            return match;
+            return null;
         }
 
         function populateTable() {
