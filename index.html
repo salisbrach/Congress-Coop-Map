@@ -382,7 +382,9 @@
         }
 
         function checkDataLoaded() {
+            console.log('checkDataLoaded called - districtData length:', districtData.length, 'geoJsonData:', !!geoJsonData);
             if (districtData.length > 0 && geoJsonData) {
+                console.log('Both datasets loaded, rendering...');
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
                 renderMap();
