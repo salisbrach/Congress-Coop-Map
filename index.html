@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Congressional Districts - Electric Cooperatives Coverage</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * {
             margin: 0;
@@ -49,36 +47,12 @@
         .map-container {
             position: relative;
             padding: 20px;
-            background: white;
         }
         
         #map {
-            width: 100%;
             height: 600px;
-            border: 2px solid #e0e0e0;
             border-radius: 8px;
-            overflow: hidden;
-            background: #f9f9f9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .map-loading {
-            font-size: 16px;
-            color: #666;
-        }
-        
-        .district {
-            stroke: #666;
-            stroke-width: 0.5;
-            cursor: pointer;
-            transition: stroke-width 0.2s;
-        }
-        
-        .district:hover {
-            stroke: #000;
-            stroke-width: 2;
+            border: 2px solid #e0e0e0;
         }
         
         .legend {
@@ -119,36 +93,6 @@
             justify-content: space-between;
             font-size: 11px;
             color: #666;
-        }
-        
-        .tooltip {
-            position: absolute;
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            pointer-events: none;
-            font-size: 13px;
-            line-height: 1.6;
-            max-width: 300px;
-            z-index: 2000;
-            display: none;
-        }
-        
-        .tooltip strong {
-            display: block;
-            font-size: 14px;
-            margin-bottom: 8px;
-            color: #00005B;
-        }
-        
-        .tooltip a {
-            color: #6360F0;
-            text-decoration: none;
-        }
-        
-        .tooltip a:hover {
-            text-decoration: underline;
         }
         
         .controls {
@@ -237,6 +181,17 @@
             padding: 40px;
             color: #666;
         }
+        
+        .leaflet-popup-content {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .leaflet-popup-content strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #00005B;
+        }
     </style>
 </head>
 <body>
@@ -247,14 +202,12 @@
         </header>
         
         <div id="loadingMessage" class="loading">
-            Loading data...
+            Loading map data...
         </div>
         
         <div id="mainContent" style="display: none;">
             <div class="map-container">
-                <div id="map">
-                    <div class="map-loading">Loading map...</div>
-                </div>
+                <div id="map"></div>
                 <div class="legend">
                     <h4>Co-op Coverage Ratio</h4>
                     <div class="legend-gradient"></div>
@@ -266,7 +219,6 @@
                         <span>100%</span>
                     </div>
                 </div>
-                <div class="tooltip" id="tooltip"></div>
             </div>
             
             <div class="controls">
@@ -301,7 +253,11 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script>
+        let map;
         let districtData = [];
         let geoJsonData = null;
         const stateNames = {
@@ -321,9 +277,9 @@
 
         // Color interpolation
         function getColor(ratio) {
-            if (ratio === null || ratio === undefined) return '#ffffff';
+            if (ratio === null || ratio === undefined || isNaN(ratio)) return '#f0f0f0';
             
-            const r = ratio; // 0 to 1
+            const r = ratio;
             
             if (r <= 0.5) {
                 const t = r * 2;
@@ -350,55 +306,42 @@
             return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
         }
 
-        function formatNumber(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        // Initialize map
+        function initMap() {
+            map = L.map('map', {
+                preferCanvas: true  // Use Canvas renderer for better performance
+            }).setView([39.8283, -98.5795], 4);
+            
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                maxZoom: 19
+            }).addTo(map);
         }
 
         // Load data
         async function loadData() {
             try {
-                // Load CSV
                 const csvResponse = await fetch('districts.csv');
-                if (!csvResponse.ok) {
-                    throw new Error(`CSV fetch failed: ${csvResponse.status} - ${csvResponse.statusText}`);
-                }
                 const csvText = await csvResponse.text();
-                console.log('CSV text length:', csvText.length);
-                console.log('First 200 chars of CSV:', csvText.substring(0, 200));
                 
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
                     complete: function(results) {
-                        console.log('CSV loaded, rows:', results.data.length);
-                        if (results.errors.length > 0) {
-                            console.error('CSV parse errors:', results.errors);
-                        }
+                        console.log('CSV loaded:', results.data.length, 'rows');
                         districtData = results.data;
                         checkDataLoaded();
-                    },
-                    error: function(error) {
-                        console.error('Papa parse error:', error);
-                        document.getElementById('loadingMessage').textContent = 'Error parsing CSV: ' + error;
                     }
                 });
                 
-                // Load GeoJSON
                 const geoResponse = await fetch('districts.geojson');
-                if (!geoResponse.ok) {
-                    throw new Error(`GeoJSON fetch failed: ${geoResponse.status} - ${geoResponse.statusText}`);
-                }
-                const geoText = await geoResponse.text();
-                console.log('GeoJSON text length:', geoText.length);
-                console.log('First 100 chars of GeoJSON:', geoText.substring(0, 100));
-                
-                geoJsonData = JSON.parse(geoText);
-                console.log('GeoJSON loaded, features:', geoJsonData.features.length);
+                geoJsonData = await geoResponse.json();
+                console.log('GeoJSON loaded:', geoJsonData.features.length, 'features');
                 checkDataLoaded();
                 
             } catch (error) {
-                console.error('Error loading data:', error);
-                document.getElementById('loadingMessage').textContent = 'Error loading data files: ' + error.message;
+                console.error('Error:', error);
+                document.getElementById('loadingMessage').textContent = 'Error: ' + error.message;
             }
         }
 
@@ -406,6 +349,7 @@
             if (districtData.length > 0 && geoJsonData) {
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
+                initMap();
                 renderMap();
                 populateTable();
                 populateStateFilter();
@@ -414,93 +358,59 @@
 
         function findDistrictData(stateName, district) {
             const districtStr = String(district).padStart(2, '0');
-            const match = districtData.find(d => {
-                const stateMatch = d['State'] === stateName;
-                const districtMatch = d['District Number'].padStart(2, '0') === districtStr;
-                return stateMatch && districtMatch;
+            return districtData.find(d => {
+                return d['State'] === stateName && d['District Number'].padStart(2, '0') === districtStr;
             });
-            return match;
         }
 
         function renderMap() {
-            const mapDiv = document.getElementById('map');
-            mapDiv.innerHTML = ''; // Clear loading message
+            console.log('Rendering map...');
             
-            const width = 960;
-            const height = 600;
-            
-            const svg = d3.select("#map")
-                .append("svg")
-                .attr("width", "100%")
-                .attr("height", "100%")
-                .attr("viewBox", `0 0 ${width} ${height}`)
-                .attr("preserveAspectRatio", "xMidYMid meet");
-
-            // Use geoAlbersUsa 
-            const projection = d3.geoAlbersUsa();
-            const path = d3.geoPath().projection(projection);
-            
-            // Calculate proper fit using fitExtent with padding
-            projection.fitExtent([[40, 40], [width - 40, height - 40]], geoJsonData);
-            
-            console.log('Projection scale:', projection.scale());
-            console.log('Projection translate:', projection.translate());
-            
-            const tooltip = d3.select("#tooltip");
-
-            // Count how many features render successfully
-            let renderedCount = 0;
-            let skippedCount = 0;
-
-            svg.selectAll("path")
-                .data(geoJsonData.features)
-                .enter()
-                .append("path")
-                .attr("d", d => {
-                    const pathData = path(d);
-                    if (pathData) {
-                        renderedCount++;
-                    } else {
-                        skippedCount++;
-                        console.log('Skipped rendering:', d.properties.STATENAME, d.properties.DISTRICT);
-                    }
-                    return pathData;
-                })
-                .attr("class", "district")
-                .attr("fill", d => {
-                    const data = findDistrictData(d.properties.STATENAME, d.properties.DISTRICT);
+            L.geoJSON(geoJsonData, {
+                style: function(feature) {
+                    const data = findDistrictData(feature.properties.STATENAME, feature.properties.DISTRICT);
+                    let ratio = 0;
+                    
                     if (data && data['Ratio Coop Service']) {
                         const ratioStr = data['Ratio Coop Service'].replace('%', '');
-                        const ratio = parseFloat(ratioStr) / 100;
-                        return getColor(ratio);
+                        ratio = parseFloat(ratioStr) / 100;
                     }
-                    return '#f0f0f0';
-                })
-                .on("mouseover", function(event, d) {
-                    const data = findDistrictData(d.properties.STATENAME, d.properties.DISTRICT);
+                    
+                    return {
+                        fillColor: getColor(ratio),
+                        weight: 0.5,
+                        opacity: 1,
+                        color: '#666',
+                        fillOpacity: 0.7
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    const data = findDistrictData(feature.properties.STATENAME, feature.properties.DISTRICT);
+                    
                     if (data) {
-                        tooltip.style("display", "block")
-                            .html(`
-                                <strong>${data['Abbreviation']}-${data['District Number']}</strong>
-                                <a href="${data['Representative website link']}" target="_blank">${data['Representative']}</a><br>
-                                <strong>Total Population:</strong> ${data['Total Population']}<br>
-                                <strong>Coop Population:</strong> ${data['Coop Population']}<br>
-                                <strong>Coverage:</strong> ${data['Ratio Coop Service']}<br>
-                                <a href="${data['Coop info link']}" target="_blank">Read NRECA's data about cooperatives in this district.</a>
-                            `)
-                            .style("left", (event.pageX + 10) + "px")
-                            .style("top", (event.pageY - 28) + "px");
+                        const popupContent = `
+                            <strong>${data['Abbreviation']}-${data['District Number']}</strong><br>
+                            <a href="${data['Representative website link']}" target="_blank">${data['Representative']}</a><br>
+                            <strong>Total Population:</strong> ${data['Total Population']}<br>
+                            <strong>Coop Population:</strong> ${data['Coop Population']}<br>
+                            <strong>Coverage:</strong> ${data['Ratio Coop Service']}<br>
+                            <a href="${data['Coop info link']}" target="_blank">Read NRECA's data</a>
+                        `;
+                        
+                        layer.bindPopup(popupContent);
+                        
+                        layer.on('mouseover', function() {
+                            this.setStyle({ weight: 2, color: '#000' });
+                        });
+                        
+                        layer.on('mouseout', function() {
+                            this.setStyle({ weight: 0.5, color: '#666' });
+                        });
                     }
-                })
-                .on("mousemove", function(event) {
-                    tooltip.style("left", (event.pageX + 10) + "px")
-                           .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", function() {
-                    tooltip.style("display", "none");
-                });
+                }
+            }).addTo(map);
             
-            console.log(`Map rendered: ${renderedCount} districts shown, ${skippedCount} districts skipped`);
+            console.log('Map rendered successfully');
         }
 
         function populateTable() {
@@ -570,7 +480,6 @@
             });
         }
 
-        // Initialize
         window.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
