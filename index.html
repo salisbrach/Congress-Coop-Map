@@ -58,6 +58,15 @@
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             overflow: hidden;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .map-loading {
+            font-size: 16px;
+            color: #666;
         }
         
         .district {
@@ -243,7 +252,9 @@
         
         <div id="mainContent" style="display: none;">
             <div class="map-container">
-                <svg id="map"></svg>
+                <div id="map">
+                    <div class="map-loading">Loading map...</div>
+                </div>
                 <div class="legend">
                     <h4>Co-op Coverage Ratio</h4>
                     <div class="legend-gradient"></div>
@@ -348,21 +359,40 @@
             try {
                 // Load CSV
                 const csvResponse = await fetch('districts.csv');
+                if (!csvResponse.ok) {
+                    throw new Error(`CSV fetch failed: ${csvResponse.status} - ${csvResponse.statusText}`);
+                }
                 const csvText = await csvResponse.text();
+                console.log('CSV text length:', csvText.length);
+                console.log('First 200 chars of CSV:', csvText.substring(0, 200));
                 
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
                     complete: function(results) {
                         console.log('CSV loaded, rows:', results.data.length);
+                        if (results.errors.length > 0) {
+                            console.error('CSV parse errors:', results.errors);
+                        }
                         districtData = results.data;
                         checkDataLoaded();
+                    },
+                    error: function(error) {
+                        console.error('Papa parse error:', error);
+                        document.getElementById('loadingMessage').textContent = 'Error parsing CSV: ' + error;
                     }
                 });
                 
                 // Load GeoJSON
                 const geoResponse = await fetch('districts.geojson');
-                geoJsonData = await geoResponse.json();
+                if (!geoResponse.ok) {
+                    throw new Error(`GeoJSON fetch failed: ${geoResponse.status} - ${geoResponse.statusText}`);
+                }
+                const geoText = await geoResponse.text();
+                console.log('GeoJSON text length:', geoText.length);
+                console.log('First 100 chars of GeoJSON:', geoText.substring(0, 100));
+                
+                geoJsonData = JSON.parse(geoText);
                 console.log('GeoJSON loaded, features:', geoJsonData.features.length);
                 checkDataLoaded();
                 
@@ -393,29 +423,24 @@
         }
 
         function renderMap() {
+            const mapDiv = document.getElementById('map');
+            mapDiv.innerHTML = ''; // Clear loading message
+            
             const width = 960;
             const height = 600;
             
             const svg = d3.select("#map")
+                .append("svg")
                 .attr("width", "100%")
                 .attr("height", "100%")
                 .attr("viewBox", `0 0 ${width} ${height}`)
                 .attr("preserveAspectRatio", "xMidYMid meet");
 
-            // Calculate bounds from GeoJSON to fit all features
-            const projection = d3.geoAlbersUsa();
+            const projection = d3.geoAlbersUsa()
+                .scale(1200)
+                .translate([width / 2, height / 2]);
+
             const path = d3.geoPath().projection(projection);
-            
-            // Fit to bounds
-            const bounds = path.bounds(geoJsonData);
-            const dx = bounds[1][0] - bounds[0][0];
-            const dy = bounds[1][1] - bounds[0][1];
-            const x = (bounds[0][0] + bounds[1][0]) / 2;
-            const y = (bounds[0][1] + bounds[1][1]) / 2;
-            const scale = 0.9 / Math.max(dx / width, dy / height);
-            const translate = [width / 2 - scale * x, height / 2 - scale * y];
-            
-            projection.scale(scale).translate(translate);
 
             const tooltip = d3.select("#tooltip");
 
