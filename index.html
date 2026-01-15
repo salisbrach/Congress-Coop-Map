@@ -436,12 +436,13 @@
                 .attr("viewBox", `0 0 ${width} ${height}`)
                 .attr("preserveAspectRatio", "xMidYMid meet");
 
-            const projection = d3.geoAlbersUsa()
-                .scale(1200)
-                .translate([width / 2, height / 2]);
-
+            // Use geoAlbersUsa and fit to the actual data bounds
+            const projection = d3.geoAlbersUsa();
             const path = d3.geoPath().projection(projection);
-
+            
+            // Fit the projection to our data
+            projection.fitSize([width, height], geoJsonData);
+            
             const tooltip = d3.select("#tooltip");
 
             // Count how many features render successfully
