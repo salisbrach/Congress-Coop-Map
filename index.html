@@ -436,15 +436,31 @@
                 .attr("viewBox", `0 0 ${width} ${height}`)
                 .attr("preserveAspectRatio", "xMidYMid meet");
 
-            // Manual Mercator projection centered on US
-            const projection = d3.geoMercator()
-                .center([-98, 38])
-                .scale(800)
-                .translate([width / 2, height / 2]);
+            // Check if coordinates are already projected by examining first feature
+            const firstCoords = geoJsonData.features[0].geometry.coordinates[0][0][0];
+            console.log('First coordinate:', firstCoords);
+            console.log('Coordinate range suggests:', 
+                firstCoords[0] > 180 || firstCoords[0] < -180 ? 'Already projected (not lat/lon)' : 'Lat/Lon coordinates');
+
+            // NO projection - assume coordinates are already in the right system
+            const path = d3.geoPath().projection(null);
             
-            const path = d3.geoPath().projection(projection);
+            // Get bounds
+            const bounds = path.bounds(geoJsonData);
+            console.log('Bounds:', bounds);
             
-            console.log('Using manual projection - scale: 800, center: [-98, 38]');
+            // Calculate scale and translate to fit
+            const dx = bounds[1][0] - bounds[0][0];
+            const dy = bounds[1][1] - bounds[0][1];
+            const x = (bounds[0][0] + bounds[1][0]) / 2;
+            const y = (bounds[0][1] + bounds[1][1]) / 2;
+            const scale = 0.9 / Math.max(dx / width, dy / height);
+            const translate = [width / 2 - scale * x, height / 2 - scale * y];
+            
+            console.log('Calculated scale:', scale, 'translate:', translate);
+            
+            const g = svg.append("g")
+                .attr("transform", `translate(${translate[0]},${translate[1]}) scale(${scale})`);
             
             const tooltip = d3.select("#tooltip");
 
@@ -452,7 +468,7 @@
             let renderedCount = 0;
             let skippedCount = 0;
 
-            svg.selectAll("path")
+            g.selectAll("path")
                 .data(geoJsonData.features)
                 .enter()
                 .append("path")
