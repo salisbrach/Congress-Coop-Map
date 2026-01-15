@@ -346,29 +346,38 @@
             try {
                 // Load CSV
                 const csvResponse = await fetch('districts.csv');
+                if (!csvResponse.ok) {
+                    throw new Error(`CSV fetch failed: ${csvResponse.status} ${csvResponse.statusText}`);
+                }
                 const csvText = await csvResponse.text();
                 
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
                     complete: function(results) {
+                        console.log('CSV loaded, rows:', results.data.length);
+                        console.log('First row:', results.data[0]);
                         districtData = results.data;
                         checkDataLoaded();
                     },
                     error: function(error) {
                         console.error('Error parsing CSV:', error);
-                        document.getElementById('loadingMessage').textContent = 'Error loading CSV data';
+                        document.getElementById('loadingMessage').textContent = 'Error parsing CSV data: ' + error;
                     }
                 });
                 
                 // Load GeoJSON
                 const geoResponse = await fetch('districts.geojson');
+                if (!geoResponse.ok) {
+                    throw new Error(`GeoJSON fetch failed: ${geoResponse.status} ${geoResponse.statusText}`);
+                }
                 geoJsonData = await geoResponse.json();
+                console.log('GeoJSON loaded, features:', geoJsonData.features?.length);
                 checkDataLoaded();
                 
             } catch (error) {
                 console.error('Error loading data:', error);
-                document.getElementById('loadingMessage').textContent = 'Error loading data files. Please ensure districts.csv and districts.geojson are in the same directory.';
+                document.getElementById('loadingMessage').innerHTML = 'Error loading data files: ' + error.message + '<br>Please ensure districts.csv and districts.geojson are in the same directory as index.html';
             }
         }
 
