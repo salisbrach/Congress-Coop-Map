@@ -387,17 +387,37 @@
                 console.log('Both datasets loaded, rendering...');
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
-                renderMap();
-                populateTable();
-                populateStateFilter();
+                try {
+                    console.log('Calling renderMap...');
+                    renderMap();
+                    console.log('renderMap completed');
+                } catch (e) {
+                    console.error('Error in renderMap:', e);
+                }
+                try {
+                    console.log('Calling populateTable...');
+                    populateTable();
+                    console.log('populateTable completed');
+                } catch (e) {
+                    console.error('Error in populateTable:', e);
+                }
+                try {
+                    console.log('Calling populateStateFilter...');
+                    populateStateFilter();
+                    console.log('populateStateFilter completed');
+                } catch (e) {
+                    console.error('Error in populateStateFilter:', e);
+                }
             }
         }
 
         function renderMap() {
+            console.log('renderMap: starting, geoJsonLayer exists:', !!geoJsonLayer);
             if (geoJsonLayer) {
                 map.removeLayer(geoJsonLayer);
             }
 
+            console.log('renderMap: creating geoJSON layer with', geoJsonData.features.length, 'features');
             geoJsonLayer = L.geoJSON(geoJsonData, {
                 style: function(feature) {
                     const districtId = feature.properties.GEOID || feature.properties.geoid || 
