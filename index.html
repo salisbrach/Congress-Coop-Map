@@ -187,38 +187,6 @@
             color: #00005B;
         }
         
-        .file-upload {
-            padding: 20px;
-            background: #f9f9f9;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        
-        .file-upload-group {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .file-input-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        
-        .file-input-wrapper label {
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        input[type="file"] {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-        }
-        
         .loading {
             text-align: center;
             padding: 40px;
@@ -233,20 +201,7 @@
             <p>Interactive map showing the percentage of population served by electric cooperatives across U.S. congressional districts</p>
         </header>
         
-        <div class="file-upload">
-            <div class="file-upload-group">
-                <div class="file-input-wrapper">
-                    <label for="csvFile">Upload CSV Data:</label>
-                    <input type="file" id="csvFile" accept=".csv">
-                </div>
-                <div class="file-input-wrapper">
-                    <label for="geojsonFile">Upload GeoJSON Map:</label>
-                    <input type="file" id="geojsonFile" accept=".geojson,.json">
-                </div>
-            </div>
-        </div>
-        
-        <div id="loadingMessage" class="loading" style="display: none;">
+        <div id="loadingMessage" class="loading">
             Loading data...
         </div>
         
@@ -326,6 +281,12 @@
             'GU': 'Guam', 'AS': 'American Samoa', 'MP': 'Northern Mariana Islands'
         };
 
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadData();
+        });
+
         // Initialize map
         function initMap() {
             map = L.map('map').setView([39.8283, -98.5795], 4);
@@ -371,43 +332,41 @@
             return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        // Load CSV
-        document.getElementById('csvFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                Papa.parse(file, {
+        // Load data from files
+        async function loadData() {
+            try {
+                // Load CSV
+                const csvResponse = await fetch('districts.csv');
+                const csvText = await csvResponse.text();
+                
+                Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
                     complete: function(results) {
                         districtData = results.data;
-                        checkAndRender();
+                        checkDataLoaded();
+                    },
+                    error: function(error) {
+                        console.error('Error parsing CSV:', error);
+                        document.getElementById('loadingMessage').textContent = 'Error loading CSV data';
                     }
                 });
+                
+                // Load GeoJSON
+                const geoResponse = await fetch('districts.geojson');
+                geoJsonData = await geoResponse.json();
+                checkDataLoaded();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loadingMessage').textContent = 'Error loading data files. Please ensure districts.csv and districts.geojson are in the same directory.';
             }
-        });
+        }
 
-        // Load GeoJSON
-        document.getElementById('geojsonFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    try {
-                        geoJsonData = JSON.parse(event.target.result);
-                        checkAndRender();
-                    } catch (error) {
-                        alert('Error parsing GeoJSON file');
-                    }
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        function checkAndRender() {
+        function checkDataLoaded() {
             if (districtData.length > 0 && geoJsonData) {
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
-                if (!map) initMap();
                 renderMap();
                 populateTable();
                 populateStateFilter();
