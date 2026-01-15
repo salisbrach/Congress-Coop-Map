@@ -444,11 +444,24 @@
 
             const tooltip = d3.select("#tooltip");
 
+            // Count how many features render successfully
+            let renderedCount = 0;
+            let skippedCount = 0;
+
             svg.selectAll("path")
                 .data(geoJsonData.features)
                 .enter()
                 .append("path")
-                .attr("d", path)
+                .attr("d", d => {
+                    const pathData = path(d);
+                    if (pathData) {
+                        renderedCount++;
+                    } else {
+                        skippedCount++;
+                        console.log('Skipped rendering:', d.properties.STATENAME, d.properties.DISTRICT);
+                    }
+                    return pathData;
+                })
                 .attr("class", "district")
                 .attr("fill", d => {
                     const data = findDistrictData(d.properties.STATENAME, d.properties.DISTRICT);
@@ -482,6 +495,8 @@
                 .on("mouseout", function() {
                     tooltip.style("display", "none");
                 });
+            
+            console.log(`Map rendered: ${renderedCount} districts shown, ${skippedCount} districts skipped`);
         }
 
         function populateTable() {
