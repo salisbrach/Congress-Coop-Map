@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Congressional Districts - Electric Cooperatives Coverage</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #00005B 0%, #6360F0 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .map-container {
+            position: relative;
+            padding: 20px;
+        }
+        
+        #map {
+            height: 600px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .legend h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        
+        .controls {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .download-btn {
+            background: #00005B;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #6360F0;
+        }
+        
+        .data-section {
+            padding: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .filter-container {
+            margin-bottom: 20px;
+        }
+        
+        .filter-container label {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        
+        .filter-container select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+        
+        .data-grid {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 0;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        a {
+            color: #6360F0;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        .tooltip {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .tooltip strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #00005B;
+        }
+        
+        .file-upload {
+            padding: 20px;
+            background: #f9f9f9;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .file-upload-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .file-input-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .file-input-wrapper label {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="file"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Congressional Districts Electric Cooperatives Coverage</h1>
+            <p>Interactive map showing the percentage of population served by electric cooperatives across U.S. congressional districts</p>
+        </header>
+        
+        <div class="file-upload">
+            <div class="file-upload-group">
+                <div class="file-input-wrapper">
+                    <label for="csvFile">Upload CSV Data:</label>
+                    <input type="file" id="csvFile" accept=".csv">
+                </div>
+                <div class="file-input-wrapper">
+                    <label for="geojsonFile">Upload GeoJSON Map:</label>
+                    <input type="file" id="geojsonFile" accept=".geojson,.json">
+                </div>
+            </div>
+        </div>
+        
+        <div id="loadingMessage" class="loading" style="display: none;">
+            Loading data...
+        </div>
+        
+        <div id="mainContent" style="display: none;">
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="legend">
+                    <h4>Coop Coverage</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #00005B;"></div>
+                        <span>100%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6360F0;"></div>
+                        <span>50%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #B8B7F5;"></div>
+                        <span>25%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: white; border: 1px solid #333;"></div>
+                        <span>0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="download-btn" onclick="downloadMap()">Download Map as JPG</button>
+            </div>
+            
+            <div class="data-section">
+                <div class="filter-container">
+                    <label for="stateFilter">Filter by State:</label>
+                    <select id="stateFilter" onchange="filterTable()">
+                        <option value="">All States</option>
+                    </select>
+                </div>
+                
+                <div class="data-grid">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>District</th>
+                                <th>Representative</th>
+                                <th>Total Population</th>
+                                <th>Coop Population</th>
+                                <th>Coverage %</th>
+                                <th>More Info</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let districtData = [];
+        let geoJsonData = null;
+        let geoJsonLayer = null;
+        const stateNames = {
+            'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+            'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+            'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+            'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+            'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+            'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+            'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+            'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+            'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+            'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+            'DC': 'District of Columbia', 'PR': 'Puerto Rico', 'VI': 'U.S. Virgin Islands', 
+            'GU': 'Guam', 'AS': 'American Samoa', 'MP': 'Northern Mariana Islands'
+        };
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([39.8283, -98.5795], 4);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // Color interpolation
+        function getColor(ratio) {
+            if (ratio === null || ratio === undefined) return '#ffffff';
+            
+            const r = ratio; // 0 to 1
+            
+            if (r <= 0.5) {
+                const t = r * 2;
+                const color1 = {r: 255, g: 255, b: 255};
+                const color2 = {r: 99, g: 96, b: 240};
+                return rgbToHex(
+                    Math.round(color1.r + (color2.r - color1.r) * t),
+                    Math.round(color1.g + (color2.g - color1.g) * t),
+                    Math.round(color1.b + (color2.b - color1.b) * t)
+                );
+            } else {
+                const t = (r - 0.5) * 2;
+                const color1 = {r: 99, g: 96, b: 240};
+                const color2 = {r: 0, g: 0, b: 91};
+                return rgbToHex(
+                    Math.round(color1.r + (color2.r - color1.r) * t),
+                    Math.round(color1.g + (color2.g - color1.g) * t),
+                    Math.round(color1.b + (color2.b - color1.b) * t)
+                );
+            }
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        // Format numbers
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Load CSV
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        districtData = results.data;
+                        checkAndRender();
+                    }
+                });
+            }
+        });
+
+        // Load GeoJSON
+        document.getElementById('geojsonFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        geoJsonData = JSON.parse(event.target.result);
+                        checkAndRender();
+                    } catch (error) {
+                        alert('Error parsing GeoJSON file');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function checkAndRender() {
+            if (districtData.length > 0 && geoJsonData) {
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                if (!map) initMap();
+                renderMap();
+                populateTable();
+                populateStateFilter();
+            }
+        }
+
+        function renderMap() {
+            if (geoJsonLayer) {
+                map.removeLayer(geoJsonLayer);
+            }
+
+            geoJsonLayer = L.geoJSON(geoJsonData, {
+                style: function(feature) {
+                    const districtId = feature.properties.GEOID || feature.properties.geoid || 
+                                      feature.properties.DISTRICT_ID || feature.properties.district_id;
+                    const data = findDistrictData(districtId);
+                    const ratio = data ? parseFloat(data['Ratio Coop Service']) : 0;
+                    
+                    return {
+                        fillColor: getColor(ratio),
+                        weight: 1,
+                        opacity: 1,
+                        color: '#666',
+                        fillOpacity: 0.7
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    const districtId = feature.properties.GEOID || feature.properties.geoid || 
+                                      feature.properties.DISTRICT_ID || feature.properties.district_id;
+                    const data = findDistrictData(districtId);
+                    
+                    if (data) {
+                        const tooltipContent = `
+                            <div class="tooltip">
+                                <strong>${data['Abbreviation']}-${data['District Number']}</strong>
+                                <a href="${data['Representative Website Link']}" target="_blank">${data['Representative']}</a><br>
+                                <strong>Total Population:</strong> ${formatNumber(parseInt(data['Total Population']))}<br>
+                                <strong>Coop Population:</strong> ${formatNumber(parseInt(data['Coop Population']))}<br>
+                                <strong>Coverage:</strong> ${(parseFloat(data['Ratio Coop Service']) * 100).toFixed(2)}%<br>
+                                <a href="${data['Coop info link']}" target="_blank">Read NRECA's data about cooperatives in this district.</a>
+                            </div>
+                        `;
+                        
+                        layer.bindTooltip(tooltipContent, {
+                            sticky: true,
+                            className: 'custom-tooltip'
+                        });
+                        
+                        layer.on('mouseover', function() {
+                            this.setStyle({
+                                weight: 3,
+                                color: '#000',
+                                fillOpacity: 0.9
+                            });
+                        });
+                        
+                        layer.on('mouseout', function() {
+                            geoJsonLayer.resetStyle(this);
+                        });
+                    }
+                }
+            }).addTo(map);
+        }
+
+        function findDistrictData(districtId) {
+            return districtData.find(d => {
+                const dataId = d['Abbreviation'] + (d['District Number'] || '00').padStart(2, '0');
+                return dataId === districtId || d['GEOID'] === districtId;
+            });
+        }
+
+        function populateTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            districtData.forEach(row => {
+                const tr = document.createElement('tr');
+                const stateName = stateNames[row['Abbreviation']] || row['Abbreviation'];
+                const district = row['District Number'] === '00' || row['District Number'] === '0' ? 'At-Large' : row['District Number'];
+                
+                tr.innerHTML = `
+                    <td>${stateName} - ${district}</td>
+                    <td><a href="${row['Representative Website Link']}" target="_blank">${row['Representative']}</a></td>
+                    <td>${formatNumber(parseInt(row['Total Population']))}</td>
+                    <td>${formatNumber(parseInt(row['Coop Population']))}</td>
+                    <td>${(parseFloat(row['Ratio Coop Service']) * 100).toFixed(2)}%</td>
+                    <td><a href="${row['Coop info link']}" target="_blank">View Info</a></td>
+                `;
+                tr.dataset.state = stateName;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populateStateFilter() {
+            const select = document.getElementById('stateFilter');
+            const states = new Set();
+            
+            districtData.forEach(row => {
+                const stateName = stateNames[row['Abbreviation']] || row['Abbreviation'];
+                states.add(stateName);
+            });
+            
+            Array.from(states).sort().forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                select.appendChild(option);
+            });
+        }
+
+        function filterTable() {
+            const selectedState = document.getElementById('stateFilter').value;
+            const rows = document.querySelectorAll('#tableBody tr');
+            
+            rows.forEach(row => {
+                if (!selectedState || row.dataset.state === selectedState) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function downloadMap() {
+            const mapContainer = document.querySelector('.map-container');
+            
+            html2canvas(mapContainer, {
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'congressional-districts-coop-coverage.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
