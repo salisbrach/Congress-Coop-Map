@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Congressional Districts - Electric Cooperatives Coverage</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -261,6 +258,9 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script>
         let map;
         let districtData = [];
@@ -283,8 +283,17 @@
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', function() {
-            initMap();
-            loadData();
+            // Wait for Leaflet to fully load
+            if (typeof L !== 'undefined') {
+                initMap();
+                loadData();
+            } else {
+                // If L is not defined yet, wait a bit longer
+                setTimeout(function() {
+                    initMap();
+                    loadData();
+                }, 500);
+            }
         });
 
         // Initialize map
