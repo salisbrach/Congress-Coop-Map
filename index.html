@@ -507,9 +507,13 @@
             console.log('Map rendered successfully');
         }
 
+        let currentSort = { column: null, direction: 'asc' };
+        let currentPage = 1;
+        const rowsPerPage = 25;
+        let allRows = [];
+
         function populateTable() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
+            allRows = [];
             
             districtData.forEach(row => {
                 const tr = document.createElement('tr');
@@ -528,11 +532,111 @@
                 tr.dataset.population = parseInt(row['Total Population'].replace(/,/g, ''));
                 tr.dataset.coopPopulation = parseInt(row['Coop Population'].replace(/,/g, ''));
                 tr.dataset.percentage = parseFloat(row['Ratio Coop Service'].replace('%', ''));
-                tbody.appendChild(tr);
+                allRows.push(tr);
             });
+            
+            displayPage(1);
         }
 
-        let currentSort = { column: null, direction: 'asc' };
+        function displayPage(page) {
+            currentPage = page;
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            // Get visible rows (considering filter)
+            const selectedState = document.getElementById('stateFilter').value;
+            const visibleRows = allRows.filter(row => {
+                if (!selectedState || row.dataset.state === selectedState) {
+                    return true;
+                }
+                return false;
+            });
+            
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageRows = visibleRows.slice(start, end);
+            
+            pageRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+            
+            updatePagination(visibleRows.length);
+        }
+
+        function updatePagination(totalRows) {
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+            const start = (currentPage - 1) * rowsPerPage + 1;
+            const end = Math.min(currentPage * rowsPerPage, totalRows);
+            
+            // Update info
+            document.getElementById('paginationInfo').textContent = 
+                `Showing ${start}–${end} of ${totalRows} entries`;
+            
+            // Update controls
+            const controls = document.getElementById('paginationControls');
+            controls.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.textContent = '‹';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => displayPage(currentPage - 1);
+            controls.appendChild(prevBtn);
+            
+            // Page number buttons
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+            
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.className = 'pagination-btn';
+                firstBtn.textContent = '1';
+                firstBtn.onclick = () => displayPage(1);
+                controls.appendChild(firstBtn);
+                
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 5px';
+                    controls.appendChild(ellipsis);
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
+                pageBtn.textContent = i;
+                pageBtn.onclick = () => displayPage(i);
+                controls.appendChild(pageBtn);
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 5px';
+                    controls.appendChild(ellipsis);
+                }
+                
+                const lastBtn = document.createElement('button');
+                lastBtn.className = 'pagination-btn';
+                lastBtn.textContent = totalPages;
+                lastBtn.onclick = () => displayPage(totalPages);
+                controls.appendChild(lastBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+            nextBtn.textContent = '›';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => displayPage(currentPage + 1);
+            controls.appendChild(nextBtn);
+        }
 
         function sortTable(column) {
             // Toggle direction
