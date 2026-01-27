@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pleiades Strategy - Electric Cooperative Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #00005B;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            color: white;
+        }
+
+        .logo {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 20px;
+            filter: brightness(0) invert(1);
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.95;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .maps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .map-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .map-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .map-card-image {
+            width: 100%;
+            height: 250px;
+            background: #6360F0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-card-image::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 2%, transparent 2%),
+                radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 1%, transparent 1%),
+                radial-gradient(circle at 40% 20%, rgba(255,255,255,0.08) 2%, transparent 2%);
+            background-size: 100px 100px;
+            opacity: 0.5;
+        }
+
+        .map-icon {
+            font-size: 80px;
+            z-index: 1;
+        }
+
+        .map-card-content {
+            padding: 30px;
+        }
+
+        .map-card h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1a202c;
+        }
+
+        .map-card p {
+            font-size: 15px;
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .map-card-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .map-card-features li {
+            padding: 6px 0;
+            font-size: 14px;
+            color: #718096;
+            display: flex;
+            align-items: center;
+        }
+
+        .map-card-features li::before {
+            content: '✓';
+            color: #48bb78;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        .map-card-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .map-card-button:hover {
+            opacity: 0.9;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge.new {
+            background: #ed8936;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 60px;
+            opacity: 0.9;
+        }
+
+        .footer p {
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .maps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 32px;
+            }
+
+            .header p {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="pleiades logo white.png" alt="Pleiades Strategy" class="logo">
+            <h1>Electric Cooperative Analysis</h1>
+            <p>Interactive mapping tools for understanding electric cooperative service territories and energy affordability in America</p>
+        </div>
+
+        <div class="maps-grid">
+            <!-- Congressional Districts Map -->
+            <a href="cooperatives-coverage.html" class="map-card">
+                <div class="map-card-image">
+                    <div class="map-icon">🏛️</div>
+                </div>
+                <div class="map-card-content">
+                    <h2>Congressional Districts Coverage</h2>
+                    <p>Explore electric cooperative service populations across U.S. Congressional districts.</p>
+                    <ul class="map-card-features">
+                        <li>Interactive district boundaries</li>
+                        <li>Cooperative population data</li>
+                        <li>State and district analysis</li>
+                    </ul>
+                    <span class="map-card-button">View Map →</span>
+                </div>
+            </a>
+
+            <!-- Energy Burden Map -->
+            <a href="energy-burden.html" class="map-card">
+                <div class="map-card-image" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="map-icon">⚡</div>
+                </div>
+                <div class="map-card-content">
+                    <span class="badge new">New</span>
+                    <h2>Energy Burden Analysis</h2>
+                    <p>Visualize household energy burden overlaid with cooperative service territories.</p>
+                    <ul class="map-card-features">
+                        <li>Energy affordability metrics</li>
+                        <li>Cooperative territory overlay</li>
+                        <li>Adjustable layer controls</li>
+                    </ul>
+                    <span class="map-card-button">View Map →</span>
+                </div>
+            </a>
+        </div>
+
+        <div class="footer">
+            <p>
+                <strong>Pleiades Strategy</strong><br>
+                Data-driven insights for energy policy and rural development<br>
+                <a href="https://github.com/salisbrach/Congress-Coop-Map" target="_blank">View on GitHub</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
