@@ -178,6 +178,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 2000;
             text-align: center;
+            min-width: 300px;
         }
         
         .loading-spinner {
@@ -192,6 +193,12 @@
         
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        .loading-progress {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #718096;
         }
         
         .cooperative-popup {
@@ -212,7 +219,7 @@
         
         .energy-burden-popup {
             font-size: 14px;
-            min-width: 200px;
+            min-width: 220px;
         }
         
         .energy-burden-popup .location {
@@ -297,12 +304,13 @@
 <body>
     <div class="header">
         <h1>Household Energy Burden & Electric Cooperative Territories</h1>
-        <p>Census tract-level analysis of energy affordability across cooperative service areas</p>
+        <p>Precise census tract-level analysis using Census Gazetteer coordinates</p>
     </div>
     
     <div id="loading" class="loading">
         <div class="loading-spinner"></div>
-        <div id="loading-text">Loading data...</div>
+        <div id="loading-text">Initializing...</div>
+        <div class="loading-progress" id="loading-progress"></div>
     </div>
     
     <div class="control-panel">
@@ -348,16 +356,17 @@
         </div>
         
         <div class="stats-info" id="statsInfo">
-            <strong>Loading census tract data...</strong>
+            <strong>Waiting for data...</strong>
         </div>
     </div>
     
     <div id="map"></div>
     
     <div class="footer">
-        <p>Data: National Laboratory of the Rockies. "Household Energy and Transportation Burden," State and Local Planning for Energy, accessed 1/27/2026, 
-            <a href="https://maps.nrel.gov/slope/" target="_blank">https://maps.nrel.gov/slope</a> (Census Tract Energy Burden) | 
-        <a href="https://hifld-geoplatform.hub.arcgis.com/" target="_blank">HIFLD</a> (Cooperative Territories) | 
+        <p>Data: <a href="https://maps.nrel.gov/slope/" target="_blank">NREL SLOPE</a> (Energy Burden) | 
+        <a href="https://www.census.gov/" target="_blank">Census Gazetteer</a> (Coordinates) |
+        <a href="https://hifld-geoplatform.hub.arcgis.com/" target="_blank">HIFLD</a> (Cooperatives) | 
+        <a href="https://github.com/salisbrach/Congress-Coop-Map" target="_blank">GitHub</a></p>
     </div>
 
     <script>
@@ -366,6 +375,7 @@
         let coopLayer;
         let burdenLayer;
         let energyBurdenData = [];
+        let gazetteerData = {};
         let currentFilterLevel = 6;
 
         // Initialize map
@@ -414,7 +424,7 @@
             const div = L.DomUtil.create('div', 'info-box');
             div.innerHTML = `
                 <h4>About This Map</h4>
-                <p>This map shows actual NREL census tract-level household energy burden data overlaid with electric cooperative service territories.</p>
+                <p>This map uses exact Census Gazetteer coordinates for each census tract, overlaid with electric cooperative service territories.</p>
                 <p style="margin-top: 10px;"><strong>Energy Burden:</strong> Percentage of household income spent on energy costs.</p>
             `;
             return div;
@@ -432,15 +442,69 @@
                                  '#fdd49e';
         }
 
-        // Load and parse CSV data
+        // Parse Geography ID to extract tract GEOID
+        function parseGeographyId(geoid) {
+            // Format: 1400000US + 11-digit tract ID
+            // Example: 1400000US06001400100
+            return geoid.replace('1400000US', '');
+        }
+
+        // Load Census Gazetteer file
+        async function loadGazetteerData() {
+            updateLoadingText('Loading Census Gazetteer coordinates...');
+            updateProgress('Fetching gazetteer file...');
+            
+            try {
+                const response = await fetch('2025_Gaz_tracts_national.txt');
+                const text = await response.text();
+                
+                updateProgress('Parsing gazetteer data...');
+                
+                // Parse pipe-delimited file
+                Papa.parse(text, {
+                    header: true,
+                    delimiter: '\t', // Tab-delimited
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        // Create lookup dictionary by GEOID
+                        results.data.forEach(row => {
+                            if (row.GEOID && row.INTPTLAT && row.INTPTLON) {
+                                gazetteerData[row.GEOID] = {
+                                    lat: parseFloat(row.INTPTLAT),
+                                    lon: parseFloat(row.INTPTLON),
+                                    name: row.NAME || '',
+                                    usps: row.USPS || '',
+                                    aland: row.ALAND_SQMI || 0
+                                };
+                            }
+                        });
+                        
+                        console.log(`✓ Loaded ${Object.keys(gazetteerData).length} census tract coordinates`);
+                        updateProgress(`Loaded ${Object.keys(gazetteerData).length.toLocaleString()} tract coordinates`);
+                    },
+                    error: function(error) {
+                        console.error('Gazetteer parsing error:', error);
+                        alert('Error parsing gazetteer file: ' + error.message);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading gazetteer:', error);
+                alert('Error loading 2025_Gaz_tracts_national.txt. Make sure the file is in your repository.');
+                throw error;
+            }
+        }
+
+        // Load energy burden CSV data
         async function loadEnergyBurdenData() {
-            updateLoadingText('Loading census tract data...');
+            updateLoadingText('Loading energy burden data...');
+            updateProgress('Fetching energy burden CSV...');
             
             try {
                 const response = await fetch('household_energy_burden_baseline_tracts.csv');
                 const csvText = await response.text();
                 
-                updateLoadingText('Parsing CSV data...');
+                updateProgress('Parsing energy burden data...');
                 
                 Papa.parse(csvText, {
                     header: true,
@@ -448,186 +512,179 @@
                     skipEmptyLines: true,
                     complete: function(results) {
                         energyBurdenData = results.data;
-                        console.log(`Loaded ${energyBurdenData.length} census tracts`);
+                        console.log(`✓ Loaded ${energyBurdenData.length} energy burden records`);
                         console.log('Sample row:', energyBurdenData[0]);
-                        
-                        // Auto-detect column names
-                        detectColumnNames(results.data[0]);
-                        
-                        createEnergyBurdenLayer();
+                        updateProgress(`Loaded ${energyBurdenData.length.toLocaleString()} energy burden records`);
                     },
                     error: function(error) {
-                        console.error('CSV parsing error:', error);
-                        alert('Error parsing CSV file: ' + error.message);
+                        console.error('Energy burden parsing error:', error);
+                        alert('Error parsing energy burden file: ' + error.message);
                     }
                 });
             } catch (error) {
-                console.error('Error loading CSV:', error);
-                alert('Error loading energy burden data. Make sure household_energy_burden_baseline_tracts.csv is in your repository.');
-                createSampleData();
+                console.error('Error loading energy burden:', error);
+                alert('Error loading household_energy_burden_baseline_tracts.csv');
+                throw error;
             }
         }
 
-        // Auto-detect column names
-        let columnNames = {
-            tractId: null,
-            state: null,
-            county: null,
-            burden: null,
-            income: null,
-            energyCost: null,
-            lat: null,
-            lon: null
-        };
-
-        function detectColumnNames(sampleRow) {
-            const keys = Object.keys(sampleRow);
-            
-            // Try to detect column names (case-insensitive)
-            for (let key of keys) {
-                const lowerKey = key.toLowerCase();
-                
-                if (lowerKey.includes('geoid') || lowerKey.includes('tract_id') || lowerKey.includes('tractid')) {
-                    columnNames.tractId = key;
-                }
-                if (lowerKey.includes('state') && !lowerKey.includes('fips')) {
-                    columnNames.state = key;
-                }
-                if (lowerKey.includes('county') && !lowerKey.includes('fips')) {
-                    columnNames.county = key;
-                }
-                if (lowerKey.includes('burden') || lowerKey === 'mean_energy_burden') {
-                    columnNames.burden = key;
-                }
-                if (lowerKey.includes('income') && !lowerKey.includes('burden')) {
-                    columnNames.income = key;
-                }
-                if (lowerKey.includes('energy_cost') || lowerKey.includes('energycost')) {
-                    columnNames.energyCost = key;
-                }
-                if (lowerKey === 'lat' || lowerKey === 'latitude' || lowerKey === 'centroid_lat') {
-                    columnNames.lat = key;
-                }
-                if (lowerKey === 'lon' || lowerKey === 'lng' || lowerKey === 'longitude' || lowerKey === 'centroid_lon') {
-                    columnNames.lon = key;
-                }
-            }
-            
-            console.log('Detected column names:', columnNames);
-        }
-
-        // Create energy burden layer from CSV
-        function createEnergyBurdenLayer() {
+        // Create energy burden layer with gazetteer coordinates
+        async function createEnergyBurdenLayer() {
             burdenLayer.clearLayers();
+            
+            updateLoadingText('Creating map points...');
             
             let pointsAdded = 0;
             let totalBurden = 0;
             let countWithBurden = 0;
+            let skippedNoMatch = 0;
+            let skippedNoCoords = 0;
             
-            energyBurdenData.forEach(tract => {
-                // Get values using detected column names
-                const burden = tract[columnNames.burden];
-                const lat = tract[columnNames.lat];
-                const lon = tract[columnNames.lon];
+            // Process in batches
+            const batchSize = 1000;
+            for (let i = 0; i < energyBurdenData.length; i += batchSize) {
+                const batch = energyBurdenData.slice(i, Math.min(i + batchSize, energyBurdenData.length));
                 
-                // Skip if missing critical data or below filter threshold
-                if (!burden || !lat || !lon || burden < currentFilterLevel) {
-                    return;
-                }
-                
-                const tractId = tract[columnNames.tractId] || 'Unknown';
-                const state = tract[columnNames.state] || '';
-                const county = tract[columnNames.county] || '';
-                const income = tract[columnNames.income];
-                const energyCost = tract[columnNames.energyCost];
-                
-                // Create popup content
-                let popupContent = `
-                    <div class="energy-burden-popup">
-                        <div class="location">${county ? county + ', ' : ''}${state}</div>
-                        <div class="burden-value">${burden.toFixed(1)}%</div>
-                        <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">Energy Burden</div>
-                `;
-                
-                if (income) {
+                for (const tract of batch) {
+                    const geoid = tract['Geography ID'];
+                    const burden = tract['Energy Burden Pct Income'];
+                    const transportBurden = tract['Transportation Burden Pct Income'];
+                    
+                    // Skip if no burden data or below filter
+                    if (!burden || burden < currentFilterLevel) {
+                        continue;
+                    }
+
+                    // Extract tract GEOID
+                    const tractGeoid = parseGeographyId(geoid);
+                    
+                    // Look up coordinates from gazetteer
+                    const coords = gazetteerData[tractGeoid];
+                    
+                    if (!coords) {
+                        skippedNoMatch++;
+                        continue;
+                    }
+
+                    if (!coords.lat || !coords.lon) {
+                        skippedNoCoords++;
+                        continue;
+                    }
+
+                    // Extract state info from GEOID for display
+                    const stateFips = tractGeoid.substring(0, 2);
+                    
+                    // Create popup
+                    let popupContent = `
+                        <div class="energy-burden-popup">
+                            <div class="location">Tract ${coords.name}</div>
+                            <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">${coords.usps}</div>
+                            <div class="burden-value">${burden.toFixed(1)}%</div>
+                            <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">Energy Burden</div>
+                    `;
+                    
+                    if (transportBurden) {
+                        popupContent += `
+                            <div class="data-row">
+                                <span class="data-label">Transport Burden:</span>
+                                <span class="data-value">${transportBurden.toFixed(1)}%</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Total Burden:</span>
+                                <span class="data-value">${(burden + transportBurden).toFixed(1)}%</span>
+                            </div>
+                        `;
+                    }
+
+                    if (coords.aland) {
+                        popupContent += `
+                            <div class="data-row">
+                                <span class="data-label">Land Area:</span>
+                                <span class="data-value">${coords.aland.toFixed(1)} sq mi</span>
+                            </div>
+                        `;
+                    }
+                    
                     popupContent += `
-                        <div class="data-row">
-                            <span class="data-label">Median Income:</span>
-                            <span class="data-value">$${income.toLocaleString()}</span>
+                            <div class="data-row" style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                                <span class="data-label">Tract GEOID:</span>
+                                <span class="data-value" style="font-size: 10px;">${tractGeoid}</span>
+                            </div>
                         </div>
                     `;
+                    
+                    // Create marker at exact coordinates
+                    const circle = L.circleMarker([coords.lat, coords.lon], {
+                        radius: 4,
+                        fillColor: getColor(burden),
+                        color: getColor(burden),
+                        weight: 1,
+                        opacity: 0.7,
+                        fillOpacity: 0.7
+                    }).bindPopup(popupContent);
+                    
+                    circle.on('mouseover', function (e) {
+                        this.setStyle({
+                            radius: 7,
+                            fillOpacity: 0.9,
+                            weight: 2,
+                            opacity: 1
+                        });
+                    });
+                    
+                    circle.on('mouseout', function (e) {
+                        this.setStyle({
+                            radius: 4,
+                            fillOpacity: 0.7,
+                            weight: 1,
+                            opacity: 0.7
+                        });
+                    });
+                    
+                    circle.addTo(burdenLayer);
+                    pointsAdded++;
+                    totalBurden += burden;
+                    countWithBurden++;
                 }
                 
-                if (energyCost) {
-                    popupContent += `
-                        <div class="data-row">
-                            <span class="data-label">Energy Cost:</span>
-                            <span class="data-value">$${energyCost.toLocaleString()}/yr</span>
-                        </div>
-                    `;
+                // Update progress periodically
+                if (i % 5000 === 0 && i > 0) {
+                    updateProgress(`Processing ${i.toLocaleString()} of ${energyBurdenData.length.toLocaleString()} tracts...`);
+                    await new Promise(resolve => setTimeout(resolve, 10));
                 }
-                
-                popupContent += `
-                        <div class="data-row">
-                            <span class="data-label">Census Tract:</span>
-                            <span class="data-value" style="font-size: 11px;">${tractId}</span>
-                        </div>
-                    </div>
-                `;
-                
-                // Create marker
-                const circle = L.circleMarker([lat, lon], {
-                    radius: 5,
-                    fillColor: getColor(burden),
-                    color: getColor(burden),
-                    weight: 1,
-                    opacity: 0.8,
-                    fillOpacity: 0.7
-                }).bindPopup(popupContent);
-                
-                circle.on('mouseover', function (e) {
-                    this.setStyle({
-                        radius: 8,
-                        fillOpacity: 0.9,
-                        weight: 2
-                    });
-                });
-                
-                circle.on('mouseout', function (e) {
-                    this.setStyle({
-                        radius: 5,
-                        fillOpacity: 0.7,
-                        weight: 1
-                    });
-                });
-                
-                circle.addTo(burdenLayer);
-                pointsAdded++;
-                totalBurden += burden;
-                countWithBurden++;
-            });
+            }
             
             // Update stats
             const avgBurden = countWithBurden > 0 ? (totalBurden / countWithBurden).toFixed(1) : 0;
-            updateStats(pointsAdded, avgBurden);
+            updateStats(pointsAdded, avgBurden, skippedNoMatch);
             
-            console.log(`Created ${pointsAdded} energy burden markers`);
+            console.log(`✓ Created ${pointsAdded} energy burden markers`);
+            if (skippedNoMatch > 0) {
+                console.log(`⚠ ${skippedNoMatch} tracts not found in gazetteer`);
+            }
         }
 
         // Update statistics display
-        function updateStats(count, avgBurden) {
+        function updateStats(count, avgBurden, skipped) {
             const statsDiv = document.getElementById('statsInfo');
             const filterText = currentFilterLevel === 0 ? 'all tracts' : `burden ≥${currentFilterLevel}%`;
-            statsDiv.innerHTML = `
+            let html = `
                 <strong>Showing ${count.toLocaleString()} tracts</strong><br>
                 Filtered: ${filterText}<br>
                 Average burden: ${avgBurden}%
             `;
+            
+            if (skipped > 0) {
+                html += `<br><span style="color: #d97706; font-size: 11px;">⚠️ ${skipped.toLocaleString()} tracts not in gazetteer</span>`;
+            }
+            
+            statsDiv.innerHTML = html;
         }
 
         // Load cooperative territories
         async function loadCooperativeTerritories() {
             updateLoadingText('Loading cooperative territories...');
+            updateProgress('Fetching cooperative boundaries...');
             
             try {
                 const baseUrl = 'https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Electric_Retail_Service_Territories/FeatureServer/0/query';
@@ -673,10 +730,12 @@
                     }).addTo(coopLayer);
                     
                     console.log(`✓ Loaded ${data.features.length} cooperative territories`);
+                    updateProgress(`Loaded ${data.features.length} cooperative territories`);
                     return data.features.length;
                 }
             } catch (error) {
                 console.error('Error loading cooperative territories:', error);
+                updateProgress('Could not load cooperative territories');
                 return 0;
             }
         }
@@ -686,14 +745,9 @@
             document.getElementById('loading-text').textContent = text;
         }
 
-        // Create sample data fallback
-        function createSampleData() {
-            console.log('Using sample data - CSV file not found');
-            energyBurdenData = [
-                {lat: 33.749, lon: -84.388, burden: 14.2, state: 'GA', county: 'Fulton'},
-                {lat: 35.227, lon: -80.843, burden: 12.8, state: 'NC', county: 'Mecklenburg'}
-            ];
-            createEnergyBurdenLayer();
+        // Update progress text
+        function updateProgress(text) {
+            document.getElementById('loading-progress').textContent = text;
         }
 
         // Event listeners
@@ -730,18 +784,27 @@
             createEnergyBurdenLayer();
         });
 
-        // Initialize
+        // Initialize everything
         async function initialize() {
             try {
-                await loadCooperativeTerritories();
-                await loadEnergyBurdenData();
+                // Load data in parallel
+                await Promise.all([
+                    loadGazetteerData(),
+                    loadEnergyBurdenData(),
+                    loadCooperativeTerritories()
+                ]);
                 
+                // Create the burden layer
+                await createEnergyBurdenLayer();
+                
+                // Hide loading screen
                 document.getElementById('loading').style.display = 'none';
-                console.log('✓ Map initialized successfully');
+                console.log('✓ Map initialized successfully with exact coordinates!');
             } catch (error) {
                 console.error('Initialization error:', error);
-                document.getElementById('loading').innerHTML = 
-                    '<div style="color: #e53e3e;">Error loading map. Check console for details.</div>';
+                document.getElementById('loading-text').textContent = 'Error loading map';
+                document.getElementById('loading-progress').innerHTML = 
+                    '<span style="color: #e53e3e;">Check console for details</span>';
             }
         }
 
