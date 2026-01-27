@@ -360,7 +360,6 @@
                 <div><i style="background: #22c55e"></i>Low (&lt; 3.8%)</div>
                 <div><i style="background: #eab308"></i>Medium (3.8-6.0%)</div>
                 <div><i style="background: #f97316"></i>High (6.0-10.0%)</div>
-                <div><i style="background: #dc2626"></i>Very High (&gt; 10.0%)</div>
             </div>
         </div>
 
@@ -404,8 +403,7 @@
         function getColor(burden) {
             if (burden < 3.8) return '#22c55e';      // Green - Low
             if (burden < 6.0) return '#eab308';      // Yellow - Medium
-            if (burden < 10.0) return '#f97316';     // Orange - High
-            return '#dc2626';                         // Red - Very High
+            return '#dc2626';                         // Red - High
         }
 
         // Load gazetteer data
