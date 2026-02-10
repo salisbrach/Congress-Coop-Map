@@ -3,657 +3,325 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energy Burden & Electric Cooperative Territories</title>
+    <title>US Household Energy Burden Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        header {
-            background: #00005B;
-            color: white;
-            padding: 30px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        header img {
-            height: 60px;
-            width: auto;
-        }
-        
-        header .header-text {
-            flex: 1;
-        }
-        
-        header h1 {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-        
-        header p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
-        .map-container {
-            position: relative;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         
         #map {
-            height: 600px;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        .info {
+            padding: 10px 14px;
+            background: white;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
             border-radius: 8px;
-            border: 2px solid #e0e0e0;
+            max-width: 280px;
+        }
+        
+        .info h4 {
+            margin: 0 0 8px;
+            color: #333;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .info p {
+            margin: 6px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .info b {
+            color: #333;
         }
         
         .legend {
-            position: absolute;
-            bottom: 40px;
-            right: 40px;
+            padding: 10px 14px;
             background: white;
-            padding: 15px;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            z-index: 1000;
-            min-width: 250px;
+            line-height: 20px;
+            color: #555;
         }
         
         .legend h4 {
-            margin: 0 0 10px 0;
+            margin: 0 0 8px;
             font-size: 14px;
             font-weight: 600;
-            text-align: center;
+            color: #333;
         }
         
-        .legend-gradient {
-            width: 100%;
-            height: 25px;
-            background: linear-gradient(to right, 
-                #FFC0C0 0%, 
-                #FF6B6B 25%, 
-                #CD0000 50%, 
-                #8E0000 75%, 
-                #540000 100%);
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            margin-bottom: 5px;
-        }
-        
-        .legend-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 15px;
-        }
-        
-        .legend-divider {
-            border-top: 1px solid #ddd;
-            margin: 12px 0;
-        }
-        
-        .legend-item {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-            font-size: 13px;
-        }
-        
-        .legend-item i {
-            width: 30px;
+        .legend i {
+            width: 18px;
             height: 18px;
+            float: left;
             margin-right: 8px;
+            opacity: 0.8;
             border-radius: 2px;
         }
         
-        .legend-coop {
-            background: rgba(99, 96, 240, 0.25);
-            border: 2px solid #6360F0;
-        }
-        
-        .control-panel {
-            position: absolute;
-            top: 40px;
-            left: 40px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            z-index: 1000;
-            min-width: 200px;
-        }
-        
-        .control-panel h4 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .control-panel label {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        
-        .control-panel input[type="checkbox"] {
-            margin-right: 8px;
-            cursor: pointer;
-        }
-        
-        .control-panel select {
-            width: 100%;
-            padding: 6px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        
-        .opacity-control {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #e0e0e0;
-        }
-        
-        .opacity-label {
-            display: flex;
-            justify-content: space-between;
+        .legend p {
+            margin: 4px 0;
             font-size: 12px;
-            margin-bottom: 4px;
+            clear: both;
         }
         
-        .control-panel input[type="range"] {
-            width: 100%;
-        }
-        
-        .loading {
+        #loading {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.95);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        }
-        
-        .loading-content {
-            text-align: center;
-            padding: 40px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            max-width: 400px;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 10000;
+            text-align: center;
         }
         
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            margin: 0 auto 20px;
-            border: 4px solid #e0e0e0;
-            border-top-color: #00005B;
+        #loading h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        #loading .progress {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
             border-radius: 50%;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
+            margin: 15px auto;
         }
         
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
-        .loading-text {
-            font-size: 16px;
-            font-weight: 600;
-            color: #00005B;
-            margin-bottom: 8px;
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
         }
         
-        .loading-progress {
-            font-size: 13px;
-            color: #666;
-        }
-        
-        .stats-info {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #e0e0e0;
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .explainer-text {
-            padding: 20px;
+        .progress-bar-fill {
+            height: 100%;
+            background: #3498db;
+            width: 0%;
+            transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <img src="pleiades logo white.png" alt="Pleiades Strategy" onerror="this.style.display='none'">
-            <div class="header-text">
-                <h1>Energy Burden & Electric Cooperative Territories</h1>
-                <p>Household energy burden by census tract overlaid with electric cooperative service territories</p>
-            </div>
-        </header>
-        
-        <div class="map-container">
-            <div id="map"></div>
-            
-            <div class="control-panel">
-                <h4>Map Layers</h4>
-                <label>
-                    <input type="checkbox" id="coopToggle" checked>
-                    Cooperative Territories
-                </label>
-                <label>
-                    <input type="checkbox" id="burdenToggle" checked>
-                    Energy Burden
-                </label>
-                
-                <div style="margin-top: 12px;">
-                    <label for="burdenFilter" style="display: block; margin-bottom: 4px;">
-                        Filter by Burden:
-                    </label>
-                    <select id="burdenFilter">
-                        <option value="all">All Tracts</option>
-                        <option value="low">Low (&lt; 3.8%)</option>
-                        <option value="medium">Medium (3.8-6.0%)</option>
-                        <option value="high">High (&gt; 6.0%)</option>
-                    </select>
-                </div>
-                
-                <div class="opacity-control">
-                    <div class="opacity-label">
-                        <span>Burden Opacity:</span>
-                        <span id="burdenOpacityValue">70%</span>
-                    </div>
-                    <input type="range" id="burdenOpacity" min="0" max="100" value="70">
-                </div>
-                
-                <div class="opacity-control">
-                    <div class="opacity-label">
-                        <span>Coop Opacity:</span>
-                        <span id="coopOpacityValue">25%</span>
-                    </div>
-                    <input type="range" id="coopOpacity" min="0" max="100" value="25">
-                </div>
-                
-                <div class="stats-info" id="statsInfo">
-                    Loading data...
-                </div>
-            </div>
-            
-            <div class="legend">
-                <h4>Energy Burden (% of Income)</h4>
-                <div class="legend-gradient"></div>
-                <div class="legend-labels">
-                    <span>0%</span>
-                    <span>3.8%</span>
-                    <span>6%</span>
-                    <span>10%</span>
-                    <span>15%+</span>
-                </div>
-                <div class="legend-divider"></div>
-                <div class="legend-item">
-                    <i class="legend-coop"></i>
-                    <span>Cooperative Territory</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="explainer-text">
-            <h3>About This Map</h3>
-            <p>This interactive map displays household energy burden data by census tract, overlaid with electric cooperative service territories. Energy burden represents the percentage of household income spent on energy costs. The darker the shading, the higher the energy burden in that area.</p>
+    <div id="loading">
+        <h3>Loading Energy Burden Data</h3>
+        <div class="spinner"></div>
+        <div class="progress">Initializing...</div>
+        <div class="progress-bar">
+            <div class="progress-bar-fill" id="progressBar"></div>
         </div>
     </div>
     
-    <div class="loading" id="loading">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div class="loading-text" id="loading-text">Loading map data...</div>
-            <div class="loading-progress" id="loading-progress">Please wait 5-10 seconds...</div>
-        </div>
-    </div>
-
+    <div id="map"></div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Initialize map
-        const map = L.map('map').setView([39.8283, -98.5795], 5);
+        const map = L.map('map', {
+            center: [39.8283, -98.5795], // Center of US
+            zoom: 5,
+            minZoom: 4,
+            maxZoom: 13
+        });
         
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
+        // Add base map
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
         }).addTo(map);
-
-        // Create layer groups
-        const coopLayer = L.layerGroup().addTo(map);
-        const burdenLayer = L.layerGroup().addTo(map);
-
-        // Data storage
-        let energyBurdenGeoJSON = null;
-        let currentFilterTier = 'all';
-
-        // Color gradient for energy burden - custom red heat map
+        
+        // Color scale for energy burden
         function getColor(burden) {
-            if (burden <= 0) return '#FFC0C0';
-            if (burden < 3.8) {
-                const ratio = burden / 3.8;
-                return interpolateColor('#FFC0C0', '#FF6B6B', ratio);
-            }
-            if (burden < 6.0) {
-                const ratio = (burden - 3.8) / (6.0 - 3.8);
-                return interpolateColor('#FF6B6B', '#CD0000', ratio);
-            }
-            if (burden < 10.0) {
-                const ratio = (burden - 6.0) / (10.0 - 6.0);
-                return interpolateColor('#CD0000', '#8E0000', ratio);
-            }
-            if (burden < 15.0) {
-                const ratio = (burden - 10.0) / (15.0 - 10.0);
-                return interpolateColor('#8E0000', '#540000', ratio);
-            }
-            return '#540000';
+            return burden > 8.0 ? '#a50f15' :  // Dark red
+                   burden > 6.0 ? '#de2d26' :  // Red
+                   burden > 4.5 ? '#fb6a4a' :  // Light red
+                   burden > 3.8 ? '#fc9272' :  // Pink
+                   burden > 3.0 ? '#fcbba1' :  // Light pink
+                                  '#fee5d9';   // Very light pink
         }
         
-        function interpolateColor(color1, color2, ratio) {
-            const hex = (color) => {
-                const c = color.replace('#', '');
-                return [
-                    parseInt(c.substr(0, 2), 16),
-                    parseInt(c.substr(2, 2), 16),
-                    parseInt(c.substr(4, 2), 16)
-                ];
+        // Style function
+        function style(feature) {
+            return {
+                fillColor: getColor(feature.properties.energy_burden),
+                weight: 0.5,
+                opacity: 0.3,
+                color: 'white',
+                fillOpacity: 0.7
             };
-            
-            const c1 = hex(color1);
-            const c2 = hex(color2);
-            
-            const r = Math.round(c1[0] + (c2[0] - c1[0]) * ratio);
-            const g = Math.round(c1[1] + (c2[1] - c1[1]) * ratio);
-            const b = Math.round(c1[2] + (c2[2] - c1[2]) * ratio);
-            
-            return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
         }
-
-        // Update loading text
-        function updateLoadingText(text) {
-            document.getElementById('loading-text').textContent = text;
+        
+        // Highlight feature on hover
+        function highlightFeature(e) {
+            const layer = e.target;
+            layer.setStyle({
+                weight: 2,
+                color: '#666',
+                fillOpacity: 0.9
+            });
+            layer.bringToFront();
+            info.update(layer.feature.properties);
         }
-
-        // Update progress text
-        function updateProgress(text) {
-            document.getElementById('loading-progress').textContent = text;
+        
+        function resetHighlight(e) {
+            geojsonLayer.resetStyle(e.target);
+            info.update();
         }
-
-        // Load merged census tract GeoJSON with energy burden data
-        async function loadEnergyBurdenTracts() {
-            updateLoadingText('Loading census tracts...');
-            updateProgress('Downloading merged data file...');
+        
+        // Info control
+        const info = L.control();
+        
+        info.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        
+        info.update = function (props) {
+            this._div.innerHTML = '<h4>Household Energy Burden</h4>' +  
+                (props ?
+                    '<p><b>' + props.state_name + '</b></p>' +
+                    '<p>Census Tract: ' + props.GEOID + '</p>' +
+                    '<p>Energy Burden: <b>' + props.energy_burden.toFixed(2) + '%</b> of income</p>' +
+                    '<p style="font-size:11px;color:#888;margin-top:8px;">Hover over tracts to see details</p>'
+                    : '<p>Hover over a census tract</p>');
+        };
+        
+        info.addTo(map);
+        
+        // Legend
+        const legend = L.control({position: 'bottomright'});
+        
+        legend.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'legend');
+            const grades = [0, 3.0, 3.8, 4.5, 6.0, 8.0];
             
-            try {
-                const response = await fetch('energy_burden_tracts.geojson');
-                energyBurdenGeoJSON = await response.json();
-                
-                console.log(`✓ Loaded ${energyBurdenGeoJSON.features.length} census tracts with energy burden data`);
-                updateProgress('Rendering map...');
-                
-                // Render the data
-                renderEnergyBurdenLayer();
-                
-            } catch (error) {
-                console.error('Error loading energy burden tracts:', error);
-                updateLoadingText('Error loading data');
-                updateProgress('Check that energy_burden_tracts.geojson is in the same folder');
-                throw error;
-            }
-        }
-
-        // Render energy burden layer with current filter
-        function renderEnergyBurdenLayer() {
-            burdenLayer.clearLayers();
+            div.innerHTML = '<h4>Energy Burden<br/>% of Income</h4>';
             
-            if (!energyBurdenGeoJSON) return;
-            
-            let displayedTracts = 0;
-            const tierCounts = { low: 0, medium: 0, high: 0 };
-            let totalBurden = 0;
-            
-            L.geoJSON(energyBurdenGeoJSON, {
-                style: (feature) => {
-                    const burden = feature.properties.energy_burden;
-                    return {
-                        fillColor: getColor(burden),
-                        weight: 0.5,
-                        opacity: 0.4,
-                        color: '#666',
-                        fillOpacity: 0.7
-                    };
-                },
-                filter: (feature) => {
-                    const tier = feature.properties.tier;
-                    return currentFilterTier === 'all' || tier === currentFilterTier;
-                },
-                onEachFeature: (feature, layer) => {
-                    const props = feature.properties;
-                    const burden = props.energy_burden;
-                    const tier = props.tier;
-                    
-                    // Count for stats
-                    displayedTracts++;
-                    tierCounts[tier]++;
-                    totalBurden += burden;
-                    
-                    const popupContent = `
-                        <div style="font-size: 14px; min-width: 200px;">
-                            <div style="font-weight: 600; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">
-                                ${props.state_name || 'Unknown State'}
-                            </div>
-                            <div style="margin: 5px 0;"><strong>Census Tract:</strong> ${props.GEOID}</div>
-                            <div style="margin: 5px 0;"><strong>Energy Burden:</strong> ${burden.toFixed(1)}%</div>
-                            <div style="margin: 5px 0;"><strong>Category:</strong> ${tier.charAt(0).toUpperCase() + tier.slice(1)}</div>
-                        </div>
-                    `;
-                    
-                    layer.bindPopup(popupContent);
-                    
-                    layer.on('mouseover', function() {
-                        this.setStyle({
-                            weight: 2,
-                            color: '#000',
-                            fillOpacity: 0.9
-                        });
-                    });
-                    
-                    layer.on('mouseout', function() {
-                        this.setStyle({
-                            weight: 0.5,
-                            color: '#666',
-                            fillOpacity: 0.7
-                        });
-                    });
-                }
-            }).addTo(burdenLayer);
-            
-            // Update stats
-            const avgBurden = displayedTracts > 0 ? (totalBurden / displayedTracts).toFixed(1) : 0;
-            updateStats(displayedTracts, avgBurden, tierCounts);
-        }
-
-        // Update statistics display
-        function updateStats(count, avgBurden, tierCounts) {
-            const statsDiv = document.getElementById('statsInfo');
-            
-            let filterText;
-            switch(currentFilterTier) {
-                case 'all':
-                    filterText = 'all tracts';
-                    break;
-                case 'low':
-                    filterText = 'Low tier';
-                    break;
-                case 'medium':
-                    filterText = 'Medium tier';
-                    break;
-                case 'high':
-                    filterText = 'High tier';
-                    break;
-                default:
-                    filterText = currentFilterTier;
+            for (let i = 0; i < grades.length; i++) {
+                div.innerHTML +=
+                    '<p><i style="background:' + getColor(grades[i] + 0.1) + '"></i> ' +
+                    grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '%' : '+%') + '</p>';
             }
             
-            let html = `
-                <strong>Showing ${count.toLocaleString()} tracts</strong><br>
-                Filter: ${filterText}<br>
-                Avg burden: ${avgBurden}%
-            `;
-            
-            if (currentFilterTier === 'all' && tierCounts) {
-                html += `<br><br><strong>Counts:</strong><br>`;
-                html += `Low: ${tierCounts.low.toLocaleString()}<br>`;
-                html += `Med: ${tierCounts.medium.toLocaleString()}<br>`;
-                html += `High: ${tierCounts.high.toLocaleString()}`;
-            }
-            
-            statsDiv.innerHTML = html;
-        }
-
-        // Load cooperative territories
-        async function loadCooperativeTerritories() {
-            updateProgress('Loading cooperative territories...');
-            
-            try {
-                const hifldUrl = 'https://services5.arcgis.com/ARxOqVFcodl7rmzw/arcgis/rest/services/America_Electrical_Coop_Service_Territories/FeatureServer/10/query';
-                
-                const params = new URLSearchParams({
-                    where: '1=1',
-                    outFields: '*',
-                    returnGeometry: 'true',
-                    f: 'geojson',
-                    outSR: '4326'
+            return div;
+        };
+        
+        legend.addTo(map);
+        
+        // Global geojsonLayer variable
+        let geojsonLayer = L.geoJSON(null, {
+            style: style,
+            onEachFeature: function(feature, layer) {
+                layer.on({
+                    mouseover: highlightFeature,
+                    mouseout: resetHighlight
                 });
-
-                const response = await fetch(`${hifldUrl}?${params}`);
-                const data = await response.json();
-
-                if (data.features && data.features.length > 0) {
-                    L.geoJSON(data.features, {
-                        style: feature => ({
-                            fillColor: '#6360F0',
-                            weight: 1.5,
-                            opacity: 0.8,
-                            color: '#6360F0',
-                            fillOpacity: 0.25
-                        }),
-                        onEachFeature: (feature, layer) => {
-                            const props = feature.properties;
-                            layer.bindPopup(`
-                                <div style="font-size: 14px;">
-                                    <div style="font-weight: 600; color: #6360F0; margin-bottom: 5px;">
-                                        ${props.NAME || props.COOP_NAME || 'Unknown Cooperative'}
-                                    </div>
-                                    <div style="margin: 3px 0; color: #4a5568;">
-                                        <strong>Type:</strong> ${props.TYPE || 'Cooperative'}
-                                    </div>
-                                    ${props.STATE ? `<div style="margin: 3px 0; color: #4a5568;"><strong>State:</strong> ${props.STATE}</div>` : ''}
-                                    ${props.COUNTRY ? `<div style="margin: 3px 0; color: #4a5568;"><strong>Country:</strong> ${props.COUNTRY}</div>` : ''}
-                                </div>
-                            `);
-                            
-                            layer.on('mouseover', function() {
-                                this.setStyle({fillOpacity: 0.4, weight: 2});
-                            });
-                            layer.on('mouseout', function() {
-                                this.setStyle({fillOpacity: 0.25, weight: 1.5});
-                            });
-                        }
-                    }).addTo(coopLayer);
-                    
-                    console.log(`✓ Loaded ${data.features.length} cooperative territories`);
-                }
-            } catch (error) {
-                console.error('Error loading cooperative territories:', error);
+            }
+        }).addTo(map);
+        
+        // Load all 3 GeoJSON files
+        let loadedFiles = 0;
+        const totalFiles = 3;
+        
+        function updateProgress(message, percentage) {
+            document.querySelector('#loading .progress').textContent = message;
+            document.getElementById('progressBar').style.width = percentage + '%';
+        }
+        
+        function fileLoaded() {
+            loadedFiles++;
+            const percentage = (loadedFiles / totalFiles) * 100;
+            
+            if (loadedFiles === totalFiles) {
+                updateProgress('Complete! Loading map...', 100);
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                }, 500);
             }
         }
-
-        // Event listeners
-        document.getElementById('coopToggle').addEventListener('change', (e) => {
-            e.target.checked ? map.addLayer(coopLayer) : map.removeLayer(coopLayer);
-        });
-
-        document.getElementById('burdenToggle').addEventListener('change', (e) => {
-            e.target.checked ? map.addLayer(burdenLayer) : map.removeLayer(burdenLayer);
-        });
-
-        document.getElementById('coopOpacity').addEventListener('input', (e) => {
-            const opacity = parseFloat(e.target.value) / 100;
-            document.getElementById('coopOpacityValue').textContent = e.target.value + '%';
-            coopLayer.eachLayer(layer => {
-                if (layer.setStyle) {
-                    layer.setStyle({fillOpacity: opacity});
-                }
+        
+        // UPDATE THESE URLs to your GitHub raw file URLs
+        const GITHUB_USERNAME = 'YOUR_USERNAME';  // ← Change this
+        const REPO_NAME = 'YOUR_REPO';            // ← Change this
+        
+        const baseUrl = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/`;
+        const westUrl = baseUrl + 'energy_burden_tracts_west.geojson';
+        const centralUrl = baseUrl + 'energy_burden_tracts_central.geojson';
+        const eastUrl = baseUrl + 'energy_burden_tracts_east.geojson';
+        
+        // Load Western US
+        updateProgress('Loading Western US...', 0);
+        fetch(westUrl)
+            .then(response => response.json())
+            .then(data => {
+                geojsonLayer.addData(data);
+                updateProgress('Western US loaded', 33);
+                fileLoaded();
+            })
+            .catch(error => {
+                console.error('Error loading Western US:', error);
+                updateProgress('Error loading Western US data', 0);
             });
-        });
-
-        document.getElementById('burdenOpacity').addEventListener('input', (e) => {
-            const opacity = parseFloat(e.target.value) / 100;
-            document.getElementById('burdenOpacityValue').textContent = e.target.value + '%';
-            burdenLayer.eachLayer(layer => {
-                if (layer.setStyle) {
-                    layer.setStyle({fillOpacity: opacity});
-                }
+        
+        // Load Central US
+        fetch(centralUrl)
+            .then(response => response.json())
+            .then(data => {
+                geojsonLayer.addData(data);
+                updateProgress('Central US loaded', 66);
+                fileLoaded();
+            })
+            .catch(error => {
+                console.error('Error loading Central US:', error);
+                updateProgress('Error loading Central US data', 33);
             });
-        });
-
-        document.getElementById('burdenFilter').addEventListener('change', (e) => {
-            currentFilterTier = e.target.value;
-            console.log(`Filter changed to: ${currentFilterTier}`);
-            renderEnergyBurdenLayer();
-        });
-
-        // Initialize everything
-        async function initialize() {
-            try {
-                // Load both datasets in parallel
-                await Promise.all([
-                    loadEnergyBurdenTracts(),
-                    loadCooperativeTerritories()
-                ]);
-                
-                // Hide loading screen
-                document.getElementById('loading').style.display = 'none';
-                console.log('✓ Map initialized successfully!');
-            } catch (error) {
-                console.error('Initialization error:', error);
-                document.getElementById('loading-text').textContent = 'Error loading map';
-                document.getElementById('loading-progress').innerHTML = 
-                    `<span style="color: #e53e3e;">Error: ${error.message}</span>`;
-            }
-        }
-
-        initialize();
+        
+        // Load Eastern US
+        fetch(eastUrl)
+            .then(response => response.json())
+            .then(data => {
+                geojsonLayer.addData(data);
+                updateProgress('Eastern US loaded', 100);
+                fileLoaded();
+            })
+            .catch(error => {
+                console.error('Error loading Eastern US:', error);
+                updateProgress('Error loading Eastern US data', 66);
+            });
     </script>
 </body>
 </html>
