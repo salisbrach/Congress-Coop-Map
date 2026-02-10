@@ -3,13 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>US Household Energy Burden Map</title>
+    <title>Energy Burden & Electric Cooperative Territories</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
         }
         
         #map {
@@ -46,7 +51,7 @@
         }
         
         .legend {
-            padding: 10px 14px;
+            padding: 14px;
             background: white;
             background: rgba(255,255,255,0.95);
             box-shadow: 0 0 15px rgba(0,0,0,0.2);
@@ -75,6 +80,75 @@
             margin: 4px 0;
             font-size: 12px;
             clear: both;
+        }
+        
+        .legend-divider {
+            border-top: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        
+        .legend-item {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        
+        .legend-coop {
+            background: rgba(49, 130, 206, 0.3);
+            border: 2px solid #2c5282;
+            width: 30px;
+            height: 18px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .control-panel h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .control-panel label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .control-panel input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .opacity-control {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .opacity-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        .control-panel input[type="range"] {
+            width: 100%;
         }
         
         #loading {
@@ -136,7 +210,7 @@
 </head>
 <body>
     <div id="loading">
-        <h3>Loading Energy Burden Data</h3>
+        <h3>Loading Map Data</h3>
         <div class="spinner"></div>
         <div class="progress">Initializing...</div>
         <div class="progress-bar">
@@ -146,11 +220,40 @@
     
     <div id="map"></div>
     
+    <!-- Layer Controls -->
+    <div class="control-panel">
+        <h4>Map Layers</h4>
+        <label>
+            <input type="checkbox" id="burdenToggle" checked>
+            Energy Burden Tracts
+        </label>
+        <label>
+            <input type="checkbox" id="coopToggle" checked>
+            Cooperative Territories
+        </label>
+        
+        <div class="opacity-control">
+            <div class="opacity-label">
+                <span>Tract Opacity</span>
+                <span id="burdenOpacityValue">70%</span>
+            </div>
+            <input type="range" id="burdenOpacity" min="0" max="100" value="70">
+        </div>
+        
+        <div class="opacity-control">
+            <div class="opacity-label">
+                <span>Coop Opacity</span>
+                <span id="coopOpacityValue">25%</span>
+            </div>
+            <input type="range" id="coopOpacity" min="0" max="100" value="25">
+        </div>
+    </div>
+    
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Initialize map
         const map = L.map('map', {
-            center: [39.8283, -98.5795], // Center of US
+            center: [39.8283, -98.5795],
             zoom: 5,
             minZoom: 4,
             maxZoom: 13
@@ -163,17 +266,21 @@
             maxZoom: 19
         }).addTo(map);
         
+        // Create layer groups
+        const burdenLayer = L.layerGroup().addTo(map);
+        const coopLayer = L.layerGroup().addTo(map);
+        
         // Color scale for energy burden
         function getColor(burden) {
-            return burden > 8.0 ? '#a50f15' :  // Dark red
-                   burden > 6.0 ? '#de2d26' :  // Red
-                   burden > 4.5 ? '#fb6a4a' :  // Light red
-                   burden > 3.8 ? '#fc9272' :  // Pink
-                   burden > 3.0 ? '#fcbba1' :  // Light pink
-                                  '#fee5d9';   // Very light pink
+            return burden > 8.0 ? '#a50f15' :
+                   burden > 6.0 ? '#de2d26' :
+                   burden > 4.5 ? '#fb6a4a' :
+                   burden > 3.8 ? '#fc9272' :
+                   burden > 3.0 ? '#fcbba1' :
+                                  '#fee5d9';
         }
         
-        // Style function
+        // Style function for census tracts
         function style(feature) {
             return {
                 fillColor: getColor(feature.properties.energy_burden),
@@ -197,7 +304,7 @@
         }
         
         function resetHighlight(e) {
-            geojsonLayer.resetStyle(e.target);
+            burdenGeoJSON.resetStyle(e.target);
             info.update();
         }
         
@@ -229,7 +336,7 @@
             const div = L.DomUtil.create('div', 'legend');
             const grades = [0, 3.0, 3.8, 4.5, 6.0, 8.0];
             
-            div.innerHTML = '<h4>Energy Burden<br/>% of Income</h4>';
+            div.innerHTML = '<h4>Energy Burden % of Income</h4>';
             
             for (let i = 0; i < grades.length; i++) {
                 div.innerHTML +=
@@ -237,25 +344,20 @@
                     grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '%' : '+%') + '</p>';
             }
             
+            div.innerHTML += '<div class="legend-divider"></div>';
+            div.innerHTML += '<div class="legend-item"><i class="legend-coop"></i> Electric Cooperative Territory</div>';
+            
             return div;
         };
         
         legend.addTo(map);
         
-        // Global geojsonLayer variable
-        let geojsonLayer = L.geoJSON(null, {
-            style: style,
-            onEachFeature: function(feature, layer) {
-                layer.on({
-                    mouseover: highlightFeature,
-                    mouseout: resetHighlight
-                });
-            }
-        }).addTo(map);
+        // Global reference to burdenGeoJSON for resetStyle
+        let burdenGeoJSON;
         
-        // Load all 3 GeoJSON files
+        // Progress tracking
         let loadedFiles = 0;
-        const totalFiles = 3;
+        const totalFiles = 4; // 3 GeoJSON files + 1 coop territories
         
         function updateProgress(message, percentage) {
             document.querySelector('#loading .progress').textContent = message;
@@ -267,57 +369,159 @@
             const percentage = (loadedFiles / totalFiles) * 100;
             
             if (loadedFiles === totalFiles) {
-                updateProgress('Complete! Loading map...', 100);
+                updateProgress('Complete!', 100);
                 setTimeout(() => {
                     document.getElementById('loading').style.display = 'none';
                 }, 500);
             }
         }
         
+        // Load census tract GeoJSON files
         const baseUrl = 'https://raw.githubusercontent.com/salisbrach/Congress-Coop-Map/refs/heads/main/';
         const westUrl = baseUrl + 'energy_burden_tracts_west.geojson';
         const centralUrl = baseUrl + 'energy_burden_tracts_central.geojson';
         const eastUrl = baseUrl + 'energy_burden_tracts_east.geojson';
         
+        // Create a single GeoJSON layer to hold all tract data
+        burdenGeoJSON = L.geoJSON(null, {
+            style: style,
+            onEachFeature: function(feature, layer) {
+                layer.on({
+                    mouseover: highlightFeature,
+                    mouseout: resetHighlight
+                });
+            }
+        }).addTo(burdenLayer);
+        
         // Load Western US
-        updateProgress('Loading Western US...', 0);
+        updateProgress('Loading Western US tracts...', 0);
         fetch(westUrl)
             .then(response => response.json())
             .then(data => {
-                geojsonLayer.addData(data);
-                updateProgress('Western US loaded', 33);
+                burdenGeoJSON.addData(data);
+                updateProgress('Western US loaded', 25);
                 fileLoaded();
             })
             .catch(error => {
                 console.error('Error loading Western US:', error);
-                updateProgress('Error loading Western US data', 0);
+                updateProgress('Error loading Western US', 0);
             });
         
         // Load Central US
         fetch(centralUrl)
             .then(response => response.json())
             .then(data => {
-                geojsonLayer.addData(data);
-                updateProgress('Central US loaded', 66);
+                burdenGeoJSON.addData(data);
+                updateProgress('Central US loaded', 50);
                 fileLoaded();
             })
             .catch(error => {
                 console.error('Error loading Central US:', error);
-                updateProgress('Error loading Central US data', 33);
+                updateProgress('Error loading Central US', 25);
             });
         
         // Load Eastern US
         fetch(eastUrl)
             .then(response => response.json())
             .then(data => {
-                geojsonLayer.addData(data);
-                updateProgress('Eastern US loaded', 100);
+                burdenGeoJSON.addData(data);
+                updateProgress('Eastern US loaded', 75);
                 fileLoaded();
             })
             .catch(error => {
                 console.error('Error loading Eastern US:', error);
-                updateProgress('Error loading Eastern US data', 66);
+                updateProgress('Error loading Eastern US', 50);
             });
+        
+        // Load cooperative territories
+        async function loadCooperativeTerritories() {
+            updateProgress('Loading cooperative territories...', 75);
+            
+            try {
+                const hifldUrl = 'https://services5.arcgis.com/ARxOqVFcodl7rmzw/arcgis/rest/services/America_Electrical_Coop_Service_Territories/FeatureServer/10/query';
+                
+                const params = new URLSearchParams({
+                    where: '1=1',
+                    outFields: '*',
+                    returnGeometry: 'true',
+                    f: 'geojson',
+                    outSR: '4326'
+                });
+
+                const response = await fetch(`${hifldUrl}?${params}`);
+                const data = await response.json();
+
+                if (data.features && data.features.length > 0) {
+                    L.geoJSON(data.features, {
+                        style: feature => ({
+                            fillColor: '#3182ce',
+                            weight: 1.5,
+                            opacity: 0.8,
+                            color: '#2c5282',
+                            fillOpacity: 0.25
+                        }),
+                        onEachFeature: (feature, layer) => {
+                            const props = feature.properties;
+                            layer.bindPopup(`
+                                <div style="font-size: 14px;">
+                                    <div style="font-weight: 600; color: #2c5282; margin-bottom: 5px;">
+                                        ${props.NAME || props.COOP_NAME || 'Unknown Cooperative'}
+                                    </div>
+                                    <div style="margin: 3px 0; color: #4a5568;">
+                                        <strong>Type:</strong> ${props.TYPE || 'Cooperative'}
+                                    </div>
+                                    ${props.STATE ? `<div style="margin: 3px 0; color: #4a5568;"><strong>State:</strong> ${props.STATE}</div>` : ''}
+                                </div>
+                            `);
+                            
+                            layer.on('mouseover', function() {
+                                this.setStyle({fillOpacity: 0.4, weight: 2});
+                            });
+                            layer.on('mouseout', function() {
+                                this.setStyle({fillOpacity: 0.25, weight: 1.5});
+                            });
+                        }
+                    }).addTo(coopLayer);
+                    
+                    console.log(`✓ Loaded ${data.features.length} cooperative territories`);
+                    fileLoaded();
+                } else {
+                    console.warn('No cooperative features returned');
+                    fileLoaded();
+                }
+            } catch (error) {
+                console.error('Error loading cooperative territories:', error);
+                fileLoaded();
+            }
+        }
+        
+        loadCooperativeTerritories();
+        
+        // Event listeners for layer toggles
+        document.getElementById('coopToggle').addEventListener('change', (e) => {
+            e.target.checked ? map.addLayer(coopLayer) : map.removeLayer(coopLayer);
+        });
+
+        document.getElementById('burdenToggle').addEventListener('change', (e) => {
+            e.target.checked ? map.addLayer(burdenLayer) : map.removeLayer(burdenLayer);
+        });
+
+        // Opacity controls
+        document.getElementById('coopOpacity').addEventListener('input', (e) => {
+            const opacity = parseFloat(e.target.value) / 100;
+            document.getElementById('coopOpacityValue').textContent = e.target.value + '%';
+            coopLayer.eachLayer(layer => {
+                if (layer.setStyle) {
+                    layer.setStyle({fillOpacity: opacity});
+                }
+            });
+        });
+
+        document.getElementById('burdenOpacity').addEventListener('input', (e) => {
+            const opacity = parseFloat(e.target.value) / 100;
+            document.getElementById('burdenOpacityValue').textContent = e.target.value + '%';
+            burdenGeoJSON.setStyle({fillOpacity: opacity});
+        });
     </script>
 </body>
 </html>
