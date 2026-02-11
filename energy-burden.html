@@ -303,6 +303,12 @@
             font-size: 16px;
         }
 
+        #analysis-progress {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #3498db;
+        }
+
         .download-button {
             display: inline-block;
             margin: 20px 0;
@@ -386,13 +392,14 @@
             <p>Click on a row to highlight and zoom to the tract on the map</p>
         </div>
         
-        <input type="text" id="searchBox" class="search-box" placeholder="Search by state, tract ID, or cooperative...">
+        <input type="text" id="searchBox" class="search-box" placeholder="Search by state, tract ID, or cooperative..." style="display:none;">
         
-        <button id="downloadCSV" class="download-button">Download as CSV</button>
+        <button id="downloadCSV" class="download-button" style="display:none;">Download as CSV</button>
         
         <div id="table-loading">
             <div class="spinner"></div>
             <p>Analyzing census tracts and cooperative coverage...</p>
+            <div id="analysis-progress"></div>
         </div>
         
         <table id="results-table" style="display:none;">
@@ -433,8 +440,8 @@
         
         // Data storage
         let allTractFeatures = [];
-        let coopFeatures = [];
-        let tractLayers = new Map(); // Map tract GEOID to layer
+        let coopLayers = []; // Store Leaflet layers for point-in-polygon
+        let tractLayers = new Map();
         
         // Color scale for energy burden
         function getColor(burden) {
@@ -628,8 +635,6 @@
                 const data = await response.json();
 
                 if (data.features && data.features.length > 0) {
-                    coopFeatures = data.features;
-                    
                     L.geoJSON(data.features, {
                         style: feature => ({
                             fillColor: '#3182ce',
@@ -640,6 +645,14 @@
                         }),
                         onEachFeature: (feature, layer) => {
                             const props = feature.properties;
+                            
+                            // Store layer with properties for analysis
+                            coopLayers.push({
+                                layer: layer,
+                                name: props.NAME || props.COOP_NAME || 'Unknown Cooperative',
+                                properties: props
+                            });
+                            
                             layer.bindPopup(`
                                 <div style="font-size: 14px;">
                                     <div style="font-weight: 600; color: #2c5282; margin-bottom: 5px;">
@@ -675,9 +688,10 @@
         
         loadCooperativeTerritories();
         
-        // Process top 100 tracts and find serving cooperatives
-        function processTopTracts() {
+        // Process top 100 tracts - ASYNC with batching
+        async function processTopTracts() {
             console.log('Processing top tracts...');
+            document.getElementById('analysis-progress').textContent = 'Sorting tracts by energy burden...';
             
             // Sort all tracts by energy burden
             const sortedTracts = allTractFeatures
@@ -686,60 +700,72 @@
                 .slice(0, 100);
             
             console.log(`Found ${sortedTracts.length} top tracts`);
+            console.log(`Checking against ${coopLayers.length} cooperatives`);
             
-            // Find cooperatives for each tract
-            const results = sortedTracts.map((tract, index) => {
-                const servingCoops = findServingCooperatives(tract);
-                return {
-                    rank: index + 1,
-                    geoid: tract.properties.GEOID,
-                    state: tract.properties.state_name || tract.properties.STATE || 'Unknown',
-                    burden: tract.properties.energy_burden,
-                    cooperatives: servingCoops,
-                    geometry: tract.geometry
-                };
-            });
+            const results = [];
+            
+            // Process in batches to avoid freezing
+            const batchSize = 10;
+            for (let i = 0; i < sortedTracts.length; i += batchSize) {
+                const batch = sortedTracts.slice(i, i + batchSize);
+                document.getElementById('analysis-progress').textContent = 
+                    `Analyzing tracts ${i + 1}-${Math.min(i + batchSize, sortedTracts.length)} of ${sortedTracts.length}...`;
+                
+                // Use setTimeout to allow UI to update
+                await new Promise(resolve => setTimeout(resolve, 0));
+                
+                for (const tract of batch) {
+                    const servingCoops = findServingCooperativesFast(tract);
+                    results.push({
+                        rank: results.length + 1,
+                        geoid: tract.properties.GEOID,
+                        state: tract.properties.state_name || tract.properties.STATE || 'Unknown',
+                        burden: tract.properties.energy_burden,
+                        cooperatives: servingCoops
+                    });
+                }
+            }
             
             displayTable(results);
         }
         
-        // Find which cooperatives serve a census tract
-        function findServingCooperatives(tractFeature) {
-            if (!tractFeature || !tractFeature.geometry || coopFeatures.length === 0) {
+        // Faster cooperative finding using centroid
+        function findServingCooperativesFast(tractFeature) {
+            if (!tractFeature || !tractFeature.geometry || coopLayers.length === 0) {
                 return [];
             }
             
-            const servingCoops = [];
-            const tractPoly = turf.polygon(tractFeature.geometry.coordinates);
-            
-            for (const coopFeature of coopFeatures) {
-                if (!coopFeature.geometry) continue;
+            try {
+                // Get tract centroid
+                const centroid = turf.centroid(tractFeature);
+                const point = L.latLng(centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]);
                 
-                try {
-                    let coopGeom;
-                    if (coopFeature.geometry.type === 'Polygon') {
-                        coopGeom = turf.polygon(coopFeature.geometry.coordinates);
-                    } else if (coopFeature.geometry.type === 'MultiPolygon') {
-                        coopGeom = turf.multiPolygon(coopFeature.geometry.coordinates);
-                    } else {
-                        continue;
-                    }
+                const servingCoops = [];
+                
+                // Check if point is within any coop layer
+                for (const coopData of coopLayers) {
+                    const bounds = coopData.layer.getBounds();
                     
-                    // Check if geometries intersect
-                    const intersects = turf.booleanIntersects(tractPoly, coopGeom);
+                    // Quick bounds check first
+                    if (!bounds.contains(point)) continue;
                     
-                    if (intersects) {
-                        const coopName = coopFeature.properties.NAME || 
-                                       coopFeature.properties.COOP_NAME || 
-                                       'Unknown Cooperative';
-                        servingCoops.push(coopName);
+                    // More precise check - use Leaflet's built-in contains
+                    if (coopData.layer.getBounds().contains(point)) {
+                        // Additional check for multi-polygon holes
+                        const turfPoint = turf.point([point.lng, point.lat]);
+                        const coopGeoJSON = coopData.layer.toGeoJSON();
+                        
+                        if (turf.booleanPointInPolygon(turfPoint, coopGeoJSON)) {
+                            servingCoops.push(coopData.name);
+                        }
                     }
-                } catch (error) {
-                    console.warn('Error checking intersection:', error);
                 }
+                
+                return servingCoops;
+            } catch (error) {
+                console.warn('Error finding cooperatives:', error);
+                return [];
             }
-            
-            return servingCoops;
         }
         
         // Display results in table
@@ -790,6 +816,8 @@
             // Show table, hide loading
             document.getElementById('table-loading').style.display = 'none';
             document.getElementById('results-table').style.display = 'table';
+            document.getElementById('searchBox').style.display = 'block';
+            document.getElementById('downloadCSV').style.display = 'inline-block';
             
             // Setup search
             setupSearch(results);
@@ -797,7 +825,7 @@
             // Setup CSV download
             setupCSVDownload(results);
             
-            console.log(`Table populated with ${results.length} results`);
+            console.log(`✓ Table populated with ${results.length} results`);
         }
         
         // Search functionality
