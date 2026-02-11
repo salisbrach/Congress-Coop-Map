@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Energy Burden & Electric Cooperative Territories</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -18,9 +19,7 @@
         }
         
         #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
+            height: 700px;
             width: 100%;
         }
         
@@ -206,6 +205,137 @@
             width: 0%;
             transition: width 0.3s ease;
         }
+
+        /* Table Styles */
+        #table-container {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px 40px;
+        }
+
+        .table-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .table-header h2 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .table-header p {
+            color: #666;
+            font-size: 15px;
+        }
+
+        #results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #results-table thead {
+            background: #2c3e50;
+            color: white;
+        }
+
+        #results-table th {
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            background: #2c3e50;
+            z-index: 10;
+        }
+
+        #results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+
+        #results-table tbody tr {
+            transition: background-color 0.2s;
+        }
+
+        #results-table tbody tr:hover {
+            background-color: #f0f7ff;
+            cursor: pointer;
+        }
+
+        #results-table tbody tr.highlighted {
+            background-color: #ffd700 !important;
+        }
+
+        .rank-cell {
+            font-weight: 600;
+            color: #2c5282;
+            text-align: center;
+            width: 60px;
+        }
+
+        .burden-cell {
+            font-weight: 600;
+            color: #a50f15;
+        }
+
+        .coop-cell {
+            color: #2c5282;
+        }
+
+        .no-coop {
+            color: #999;
+            font-style: italic;
+        }
+
+        #table-loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .download-button {
+            display: inline-block;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .download-button:hover {
+            background: #2980b9;
+        }
+
+        .search-box {
+            margin: 20px 0;
+            padding: 10px;
+            width: 100%;
+            max-width: 400px;
+            font-size: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #3498db;
+        }
     </style>
 </head>
 <body>
@@ -248,6 +378,37 @@
             <input type="range" id="coopOpacity" min="0" max="100" value="25">
         </div>
     </div>
+
+    <!-- Table Section -->
+    <div id="table-container">
+        <div class="table-header">
+            <h2>Top 100 Census Tracts by Energy Burden</h2>
+            <p>Click on a row to highlight and zoom to the tract on the map</p>
+        </div>
+        
+        <input type="text" id="searchBox" class="search-box" placeholder="Search by state, tract ID, or cooperative...">
+        
+        <button id="downloadCSV" class="download-button">Download as CSV</button>
+        
+        <div id="table-loading">
+            <div class="spinner"></div>
+            <p>Analyzing census tracts and cooperative coverage...</p>
+        </div>
+        
+        <table id="results-table" style="display:none;">
+            <thead>
+                <tr>
+                    <th class="rank-cell">Rank</th>
+                    <th>State</th>
+                    <th>Census Tract ID</th>
+                    <th>Energy Burden (%)</th>
+                    <th>Serving Cooperative(s)</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+            </tbody>
+        </table>
+    </div>
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -269,6 +430,11 @@
         // Create layer groups
         const burdenLayer = L.layerGroup().addTo(map);
         const coopLayer = L.layerGroup().addTo(map);
+        
+        // Data storage
+        let allTractFeatures = [];
+        let coopFeatures = [];
+        let tractLayers = new Map(); // Map tract GEOID to layer
         
         // Color scale for energy burden
         function getColor(burden) {
@@ -357,7 +523,7 @@
         
         // Progress tracking
         let loadedFiles = 0;
-        const totalFiles = 4; // 3 GeoJSON files + 1 coop territories
+        const totalFiles = 4;
         
         function updateProgress(message, percentage) {
             document.querySelector('#loading .progress').textContent = message;
@@ -372,6 +538,8 @@
                 updateProgress('Complete!', 100);
                 setTimeout(() => {
                     document.getElementById('loading').style.display = 'none';
+                    // Process data after all files loaded
+                    processTopTracts();
                 }, 500);
             }
         }
@@ -390,6 +558,11 @@
                     mouseover: highlightFeature,
                     mouseout: resetHighlight
                 });
+                
+                // Store reference to layer
+                if (feature.properties && feature.properties.GEOID) {
+                    tractLayers.set(feature.properties.GEOID, layer);
+                }
             }
         }).addTo(burdenLayer);
         
@@ -399,6 +572,7 @@
             .then(response => response.json())
             .then(data => {
                 burdenGeoJSON.addData(data);
+                allTractFeatures = allTractFeatures.concat(data.features);
                 updateProgress('Western US loaded', 25);
                 fileLoaded();
             })
@@ -412,6 +586,7 @@
             .then(response => response.json())
             .then(data => {
                 burdenGeoJSON.addData(data);
+                allTractFeatures = allTractFeatures.concat(data.features);
                 updateProgress('Central US loaded', 50);
                 fileLoaded();
             })
@@ -425,6 +600,7 @@
             .then(response => response.json())
             .then(data => {
                 burdenGeoJSON.addData(data);
+                allTractFeatures = allTractFeatures.concat(data.features);
                 updateProgress('Eastern US loaded', 75);
                 fileLoaded();
             })
@@ -452,6 +628,8 @@
                 const data = await response.json();
 
                 if (data.features && data.features.length > 0) {
+                    coopFeatures = data.features;
+                    
                     L.geoJSON(data.features, {
                         style: feature => ({
                             fillColor: '#3182ce',
@@ -496,6 +674,174 @@
         }
         
         loadCooperativeTerritories();
+        
+        // Process top 100 tracts and find serving cooperatives
+        function processTopTracts() {
+            console.log('Processing top tracts...');
+            
+            // Sort all tracts by energy burden
+            const sortedTracts = allTractFeatures
+                .filter(f => f.properties && f.properties.energy_burden != null)
+                .sort((a, b) => b.properties.energy_burden - a.properties.energy_burden)
+                .slice(0, 100);
+            
+            console.log(`Found ${sortedTracts.length} top tracts`);
+            
+            // Find cooperatives for each tract
+            const results = sortedTracts.map((tract, index) => {
+                const servingCoops = findServingCooperatives(tract);
+                return {
+                    rank: index + 1,
+                    geoid: tract.properties.GEOID,
+                    state: tract.properties.state_name || tract.properties.STATE || 'Unknown',
+                    burden: tract.properties.energy_burden,
+                    cooperatives: servingCoops,
+                    geometry: tract.geometry
+                };
+            });
+            
+            displayTable(results);
+        }
+        
+        // Find which cooperatives serve a census tract
+        function findServingCooperatives(tractFeature) {
+            if (!tractFeature || !tractFeature.geometry || coopFeatures.length === 0) {
+                return [];
+            }
+            
+            const servingCoops = [];
+            const tractPoly = turf.polygon(tractFeature.geometry.coordinates);
+            
+            for (const coopFeature of coopFeatures) {
+                if (!coopFeature.geometry) continue;
+                
+                try {
+                    let coopGeom;
+                    if (coopFeature.geometry.type === 'Polygon') {
+                        coopGeom = turf.polygon(coopFeature.geometry.coordinates);
+                    } else if (coopFeature.geometry.type === 'MultiPolygon') {
+                        coopGeom = turf.multiPolygon(coopFeature.geometry.coordinates);
+                    } else {
+                        continue;
+                    }
+                    
+                    // Check if geometries intersect
+                    const intersects = turf.booleanIntersects(tractPoly, coopGeom);
+                    
+                    if (intersects) {
+                        const coopName = coopFeature.properties.NAME || 
+                                       coopFeature.properties.COOP_NAME || 
+                                       'Unknown Cooperative';
+                        servingCoops.push(coopName);
+                    }
+                } catch (error) {
+                    console.warn('Error checking intersection:', error);
+                }
+            }
+            
+            return servingCoops;
+        }
+        
+        // Display results in table
+        function displayTable(results) {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+            
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                row.dataset.geoid = result.geoid;
+                
+                const coopText = result.cooperatives.length > 0 
+                    ? result.cooperatives.join(', ')
+                    : 'No cooperative coverage';
+                
+                row.innerHTML = `
+                    <td class="rank-cell">${result.rank}</td>
+                    <td>${result.state}</td>
+                    <td>${result.geoid}</td>
+                    <td class="burden-cell">${result.burden.toFixed(2)}%</td>
+                    <td class="${result.cooperatives.length === 0 ? 'no-coop' : 'coop-cell'}">${coopText}</td>
+                `;
+                
+                // Add click handler
+                row.addEventListener('click', () => {
+                    // Remove previous highlight
+                    document.querySelectorAll('#results-table tr.highlighted').forEach(r => {
+                        r.classList.remove('highlighted');
+                    });
+                    
+                    // Highlight clicked row
+                    row.classList.add('highlighted');
+                    
+                    // Find and zoom to tract on map
+                    const layer = tractLayers.get(result.geoid);
+                    if (layer) {
+                        map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+                        layer.setStyle({ weight: 3, color: '#ff0000' });
+                        setTimeout(() => {
+                            burdenGeoJSON.resetStyle(layer);
+                        }, 3000);
+                    }
+                });
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Show table, hide loading
+            document.getElementById('table-loading').style.display = 'none';
+            document.getElementById('results-table').style.display = 'table';
+            
+            // Setup search
+            setupSearch(results);
+            
+            // Setup CSV download
+            setupCSVDownload(results);
+            
+            console.log(`Table populated with ${results.length} results`);
+        }
+        
+        // Search functionality
+        function setupSearch(results) {
+            const searchBox = document.getElementById('searchBox');
+            const tableBody = document.getElementById('table-body');
+            
+            searchBox.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const rows = tableBody.querySelectorAll('tr');
+                
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            });
+        }
+        
+        // CSV Download
+        function setupCSVDownload(results) {
+            document.getElementById('downloadCSV').addEventListener('click', () => {
+                const headers = ['Rank', 'State', 'Census Tract ID', 'Energy Burden (%)', 'Serving Cooperatives'];
+                const rows = results.map(r => [
+                    r.rank,
+                    r.state,
+                    r.geoid,
+                    r.burden.toFixed(2),
+                    r.cooperatives.length > 0 ? r.cooperatives.join('; ') : 'No cooperative coverage'
+                ]);
+                
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'top_100_energy_burden_tracts.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
         
         // Event listeners for layer toggles
         document.getElementById('coopToggle').addEventListener('change', (e) => {
