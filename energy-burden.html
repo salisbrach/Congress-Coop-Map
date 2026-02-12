@@ -443,14 +443,16 @@
         let coopLayers = []; // Store Leaflet layers for point-in-polygon
         let tractLayers = new Map();
         
-        // Color scale for energy burden
+        // Color scale for energy burden (values are already percentages like 11.944)
         function getColor(burden) {
-            return burden > 8.0 ? '#a50f15' :
-                   burden > 6.0 ? '#de2d26' :
-                   burden > 4.5 ? '#fb6a4a' :
-                   burden > 3.8 ? '#fc9272' :
-                   burden > 3.0 ? '#fcbba1' :
-                                  '#fee5d9';
+            // Divide by 100 since data is stored as 11.944 not 0.11944
+            const pct = burden / 100;
+            return pct > 0.08 ? '#a50f15' :
+                   pct > 0.06 ? '#de2d26' :
+                   pct > 0.045 ? '#fb6a4a' :
+                   pct > 0.038 ? '#fc9272' :
+                   pct > 0.03 ? '#fcbba1' :
+                                '#fee5d9';
         }
         
         // Style function for census tracts
@@ -495,7 +497,7 @@
                 (props ?
                     '<p><b>' + props.state_name + '</b></p>' +
                     '<p>Census Tract: ' + props.GEOID + '</p>' +
-                    '<p>Energy Burden: <b>' + props.energy_burden.toFixed(2) + '%</b> of income</p>' +
+                    '<p>Energy Burden: <b>' + (props.energy_burden / 100).toFixed(2) + '%</b> of income</p>' +
                     '<p style="font-size:11px;color:#888;margin-top:8px;">Hover over tracts to see details</p>'
                     : '<p>Hover over a census tract</p>');
         };
@@ -785,7 +787,7 @@
                     <td class="rank-cell">${result.rank}</td>
                     <td>${result.state}</td>
                     <td>${result.geoid}</td>
-                    <td class="burden-cell">${result.burden.toFixed(2)}%</td>
+                    <td class="burden-cell">${(result.burden / 100).toFixed(2)}%</td>
                     <td class="${result.cooperatives.length === 0 ? 'no-coop' : 'coop-cell'}">${coopText}</td>
                 `;
                 
@@ -852,7 +854,7 @@
                     r.rank,
                     r.state,
                     r.geoid,
-                    r.burden.toFixed(2),
+                    (r.burden / 100).toFixed(2),
                     r.cooperatives.length > 0 ? r.cooperatives.join('; ') : 'No cooperative coverage'
                 ]);
                 
