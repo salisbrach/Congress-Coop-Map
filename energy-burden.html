@@ -12,17 +12,17 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f5;
         }
-        
+
         #map {
             height: 700px;
             width: 100%;
         }
-        
+
         .info {
             padding: 10px 14px;
             background: white;
@@ -31,24 +31,24 @@
             border-radius: 8px;
             max-width: 280px;
         }
-        
+
         .info h4 {
             margin: 0 0 8px;
             color: #333;
             font-size: 16px;
             font-weight: 600;
         }
-        
+
         .info p {
             margin: 6px 0;
             font-size: 13px;
             color: #666;
         }
-        
+
         .info b {
             color: #333;
         }
-        
+
         .legend {
             padding: 14px;
             background: white;
@@ -58,14 +58,14 @@
             line-height: 20px;
             color: #555;
         }
-        
+
         .legend h4 {
             margin: 0 0 8px;
             font-size: 14px;
             font-weight: 600;
             color: #333;
         }
-        
+
         .legend i {
             width: 18px;
             height: 18px;
@@ -74,25 +74,25 @@
             opacity: 0.8;
             border-radius: 2px;
         }
-        
+
         .legend p {
             margin: 4px 0;
             font-size: 12px;
             clear: both;
         }
-        
+
         .legend-divider {
             border-top: 1px solid #ddd;
             margin: 10px 0;
         }
-        
+
         .legend-item {
             margin: 8px 0;
             display: flex;
             align-items: center;
             font-size: 12px;
         }
-        
+
         .legend-coop {
             background: rgba(49, 130, 206, 0.3);
             border: 2px solid #2c5282;
@@ -101,7 +101,7 @@
             margin-right: 8px;
             border-radius: 2px;
         }
-        
+
         .control-panel {
             position: absolute;
             top: 10px;
@@ -113,13 +113,13 @@
             z-index: 1000;
             min-width: 200px;
         }
-        
+
         .control-panel h4 {
             margin: 0 0 10px 0;
             font-size: 14px;
             font-weight: 600;
         }
-        
+
         .control-panel label {
             display: flex;
             align-items: center;
@@ -127,29 +127,29 @@
             cursor: pointer;
             font-size: 13px;
         }
-        
+
         .control-panel input[type="checkbox"] {
             margin-right: 8px;
             cursor: pointer;
         }
-        
+
         .opacity-control {
             margin-top: 10px;
             padding-top: 10px;
             border-top: 1px solid #e0e0e0;
         }
-        
+
         .opacity-label {
             display: flex;
             justify-content: space-between;
             font-size: 12px;
             margin-bottom: 4px;
         }
-        
+
         .control-panel input[type="range"] {
             width: 100%;
         }
-        
+
         #loading {
             position: fixed;
             top: 50%;
@@ -162,19 +162,19 @@
             z-index: 10000;
             text-align: center;
         }
-        
+
         #loading h3 {
             margin: 0 0 15px 0;
             color: #333;
             font-size: 18px;
         }
-        
+
         #loading .progress {
             font-size: 14px;
             color: #666;
             margin-top: 10px;
         }
-        
+
         .spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #3498db;
@@ -184,12 +184,12 @@
             animation: spin 1s linear infinite;
             margin: 15px auto;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
         .progress-bar {
             width: 100%;
             height: 6px;
@@ -198,7 +198,7 @@
             overflow: hidden;
             margin-top: 15px;
         }
-        
+
         .progress-bar-fill {
             height: 100%;
             background: #3498db;
@@ -353,29 +353,29 @@
             <div class="progress-bar-fill" id="progressBar"></div>
         </div>
     </div>
-    
+
     <div id="map"></div>
-    
+
     <!-- Layer Controls -->
     <div class="control-panel">
         <h4>Map Layers</h4>
         <label>
             <input type="checkbox" id="burdenToggle" checked>
-            Energy Burden Tracts
+            Energy Burden Counties
         </label>
         <label>
             <input type="checkbox" id="coopToggle" checked>
             Cooperative Territories
         </label>
-        
+
         <div class="opacity-control">
             <div class="opacity-label">
-                <span>Tract Opacity</span>
+                <span>County Opacity</span>
                 <span id="burdenOpacityValue">70%</span>
             </div>
             <input type="range" id="burdenOpacity" min="0" max="100" value="70">
         </div>
-        
+
         <div class="opacity-control">
             <div class="opacity-label">
                 <span>Coop Opacity</span>
@@ -388,27 +388,28 @@
     <!-- Table Section -->
     <div id="table-container">
         <div class="table-header">
-            <h2>Top 100 Census Tracts by Energy Burden</h2>
-            <p>Click on a row to highlight and zoom to the tract on the map</p>
+            <h2>Top 100 Counties by Energy Burden</h2>
+            <p>Click on a row to highlight and zoom to the county on the map</p>
         </div>
-        
-        <input type="text" id="searchBox" class="search-box" placeholder="Search by state, tract ID, or cooperative..." style="display:none;">
-        
+
+        <input type="text" id="searchBox" class="search-box" placeholder="Search by state, county name, or cooperative..." style="display:none;">
+
         <button id="downloadCSV" class="download-button" style="display:none;">Download as CSV</button>
-        
+
         <div id="table-loading">
             <div class="spinner"></div>
-            <p>Analyzing census tracts and cooperative coverage...</p>
+            <p>Analyzing counties and cooperative coverage...</p>
             <div id="analysis-progress"></div>
         </div>
-        
+
         <table id="results-table" style="display:none;">
             <thead>
                 <tr>
                     <th class="rank-cell">Rank</th>
                     <th>State</th>
-                    <th>Census Tract ID</th>
-                    <th>Energy Burden (%)</th>
+                    <th>County</th>
+                    <th>County FIPS</th>
+                    <th>Energy Burden (% of income)</th>
                     <th>Serving Cooperative(s)</th>
                 </tr>
             </thead>
@@ -416,7 +417,7 @@
             </tbody>
         </table>
     </div>
-    
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Initialize map
@@ -426,46 +427,44 @@
             minZoom: 4,
             maxZoom: 13
         });
-        
+
         // Add base map
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
             subdomains: 'abcd',
             maxZoom: 19
         }).addTo(map);
-        
+
         // Create layer groups
         const burdenLayer = L.layerGroup().addTo(map);
         const coopLayer = L.layerGroup().addTo(map);
-        
+
         // Data storage
-        let allTractFeatures = [];
-        let coopLayers = []; // Store Leaflet layers for point-in-polygon
-        let tractLayers = new Map();
-        
-        // Color scale for energy burden (values are already percentages like 11.944)
+        let allCountyFeatures = [];
+        let coopLayers = [];
+        let countyLayers = new Map();
+
+        // Color scale for energy burden (values are integers like 1-15, representing % of income)
         function getColor(burden) {
-            // Divide by 100 since data is stored as 11.944 not 0.11944
-            const pct = burden / 100;
-            return pct > 0.08 ? '#a50f15' :
-                   pct > 0.06 ? '#de2d26' :
-                   pct > 0.045 ? '#fb6a4a' :
-                   pct > 0.038 ? '#fc9272' :
-                   pct > 0.03 ? '#fcbba1' :
-                                '#fee5d9';
+            return burden > 8  ? '#a50f15' :
+                   burden > 6  ? '#de2d26' :
+                   burden > 4.5 ? '#fb6a4a' :
+                   burden > 3.8 ? '#fc9272' :
+                   burden > 3   ? '#fcbba1' :
+                                  '#fee5d9';
         }
-        
-        // Style function for census tracts
+
+        // Style function for counties
         function style(feature) {
             return {
                 fillColor: getColor(feature.properties.energy_burden),
-                weight: 0.5,
-                opacity: 0.3,
+                weight: 0.8,
+                opacity: 0.4,
                 color: 'white',
                 fillOpacity: 0.7
             };
         }
-        
+
         // Highlight feature on hover
         function highlightFeature(e) {
             const layer = e.target;
@@ -477,89 +476,86 @@
             layer.bringToFront();
             info.update(layer.feature.properties);
         }
-        
+
         function resetHighlight(e) {
             burdenGeoJSON.resetStyle(e.target);
             info.update();
         }
-        
+
         // Info control
         const info = L.control();
-        
+
         info.onAdd = function (map) {
             this._div = L.DomUtil.create('div', 'info');
             this.update();
             return this._div;
         };
-        
+
         info.update = function (props) {
-            this._div.innerHTML = '<h4>Household Energy Burden</h4>' +  
+            this._div.innerHTML = '<h4>Household Energy Burden</h4>' +
                 (props ?
-                    '<p><b>' + props.state_name + '</b></p>' +
-                    '<p>Census Tract: ' + props.GEOID + '</p>' +
-                    '<p>Energy Burden: <b>' + (props.energy_burden / 100).toFixed(2) + '%</b> of income</p>' +
-                    '<p style="font-size:11px;color:#888;margin-top:8px;">Hover over tracts to see details</p>'
-                    : '<p>Hover over a census tract</p>');
+                    '<p><b>' + props.county_name + '</b></p>' +
+                    '<p>' + props.state_name + '</p>' +
+                    '<p>Energy Burden: <b>' + props.energy_burden + '%</b> of income</p>' +
+                    '<p style="font-size:11px;color:#888;margin-top:8px;">Hover over counties to see details</p>'
+                    : '<p>Hover over a county</p>');
         };
-        
+
         info.addTo(map);
-        
+
         // Legend
         const legend = L.control({position: 'bottomright'});
-        
+
         legend.onAdd = function (map) {
             const div = L.DomUtil.create('div', 'legend');
             const grades = [0, 3.0, 3.8, 4.5, 6.0, 8.0];
-            
+
             div.innerHTML = '<h4>Energy Burden % of Income</h4>';
-            
+
             for (let i = 0; i < grades.length; i++) {
                 div.innerHTML +=
                     '<p><i style="background:' + getColor(grades[i] + 0.1) + '"></i> ' +
                     grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '%' : '+%') + '</p>';
             }
-            
+
             div.innerHTML += '<div class="legend-divider"></div>';
             div.innerHTML += '<div class="legend-item"><i class="legend-coop"></i> Electric Cooperative Territory</div>';
-            
+
             return div;
         };
-        
+
         legend.addTo(map);
-        
+
         // Global reference to burdenGeoJSON for resetStyle
         let burdenGeoJSON;
-        
-        // Progress tracking
+
+        // Progress tracking — 2 files: county GeoJSON + cooperatives API
         let loadedFiles = 0;
-        const totalFiles = 4;
-        
+        const totalFiles = 2;
+
         function updateProgress(message, percentage) {
             document.querySelector('#loading .progress').textContent = message;
             document.getElementById('progressBar').style.width = percentage + '%';
         }
-        
+
         function fileLoaded() {
             loadedFiles++;
             const percentage = (loadedFiles / totalFiles) * 100;
-            
+
             if (loadedFiles === totalFiles) {
                 updateProgress('Complete!', 100);
                 setTimeout(() => {
                     document.getElementById('loading').style.display = 'none';
-                    // Process data after all files loaded
-                    processTopTracts();
+                    processTopCounties();
                 }, 500);
             }
         }
-        
-        // Load census tract GeoJSON files
+
+        // Load county GeoJSON
         const baseUrl = 'https://raw.githubusercontent.com/salisbrach/Congress-Coop-Map/refs/heads/main/';
-        const westUrl = baseUrl + 'energy_burden_tracts_west.geojson';
-        const centralUrl = baseUrl + 'energy_burden_tracts_central.geojson';
-        const eastUrl = baseUrl + 'energy_burden_tracts_east.geojson';
-        
-        // Create a single GeoJSON layer to hold all tract data
+        const countiesUrl = baseUrl + 'energy_burden_counties.geojson';
+
+        // Create a single GeoJSON layer to hold all county data
         burdenGeoJSON = L.geoJSON(null, {
             style: style,
             onEachFeature: function(feature, layer) {
@@ -567,64 +563,36 @@
                     mouseover: highlightFeature,
                     mouseout: resetHighlight
                 });
-                
-                // Store reference to layer
+
+                // Store reference to layer by GEOID
                 if (feature.properties && feature.properties.GEOID) {
-                    tractLayers.set(feature.properties.GEOID, layer);
+                    countyLayers.set(feature.properties.GEOID, layer);
                 }
             }
         }).addTo(burdenLayer);
-        
-        // Load Western US
-        updateProgress('Loading Western US tracts...', 0);
-        fetch(westUrl)
+
+        // Load county GeoJSON
+        updateProgress('Loading county data...', 0);
+        fetch(countiesUrl)
             .then(response => response.json())
             .then(data => {
                 burdenGeoJSON.addData(data);
-                allTractFeatures = allTractFeatures.concat(data.features);
-                updateProgress('Western US loaded', 25);
+                allCountyFeatures = data.features;
+                updateProgress('County data loaded', 50);
                 fileLoaded();
             })
             .catch(error => {
-                console.error('Error loading Western US:', error);
-                updateProgress('Error loading Western US', 0);
+                console.error('Error loading county data:', error);
+                updateProgress('Error loading county data', 0);
             });
-        
-        // Load Central US
-        fetch(centralUrl)
-            .then(response => response.json())
-            .then(data => {
-                burdenGeoJSON.addData(data);
-                allTractFeatures = allTractFeatures.concat(data.features);
-                updateProgress('Central US loaded', 50);
-                fileLoaded();
-            })
-            .catch(error => {
-                console.error('Error loading Central US:', error);
-                updateProgress('Error loading Central US', 25);
-            });
-        
-        // Load Eastern US
-        fetch(eastUrl)
-            .then(response => response.json())
-            .then(data => {
-                burdenGeoJSON.addData(data);
-                allTractFeatures = allTractFeatures.concat(data.features);
-                updateProgress('Eastern US loaded', 75);
-                fileLoaded();
-            })
-            .catch(error => {
-                console.error('Error loading Eastern US:', error);
-                updateProgress('Error loading Eastern US', 50);
-            });
-        
+
         // Load cooperative territories
         async function loadCooperativeTerritories() {
-            updateProgress('Loading cooperative territories...', 75);
-            
+            updateProgress('Loading cooperative territories...', 50);
+
             try {
                 const hifldUrl = 'https://services5.arcgis.com/ARxOqVFcodl7rmzw/arcgis/rest/services/America_Electrical_Coop_Service_Territories/FeatureServer/10/query';
-                
+
                 const params = new URLSearchParams({
                     where: '1=1',
                     outFields: '*',
@@ -647,14 +615,14 @@
                         }),
                         onEachFeature: (feature, layer) => {
                             const props = feature.properties;
-                            
+
                             // Store layer with properties for analysis
                             coopLayers.push({
                                 layer: layer,
                                 name: props.NAME || props.COOP_NAME || 'Unknown Cooperative',
                                 properties: props
                             });
-                            
+
                             layer.bindPopup(`
                                 <div style="font-size: 14px;">
                                     <div style="font-weight: 600; color: #2c5282; margin-bottom: 5px;">
@@ -666,7 +634,7 @@
                                     ${props.STATE ? `<div style="margin: 3px 0; color: #4a5568;"><strong>State:</strong> ${props.STATE}</div>` : ''}
                                 </div>
                             `);
-                            
+
                             layer.on('mouseover', function() {
                                 this.setStyle({fillOpacity: 0.4, weight: 2});
                             });
@@ -675,7 +643,7 @@
                             });
                         }
                     }).addTo(coopLayer);
-                    
+
                     console.log(`✓ Loaded ${data.features.length} cooperative territories`);
                     fileLoaded();
                 } else {
@@ -687,122 +655,117 @@
                 fileLoaded();
             }
         }
-        
+
         loadCooperativeTerritories();
-        
-        // Process top 100 tracts - ASYNC with batching
-        async function processTopTracts() {
-            console.log('Processing top tracts...');
-            document.getElementById('analysis-progress').textContent = 'Sorting tracts by energy burden...';
-            
-            // Sort all tracts by energy burden
-            const sortedTracts = allTractFeatures
+
+        // Process top 100 counties - ASYNC with batching
+        async function processTopCounties() {
+            console.log('Processing top counties...');
+            document.getElementById('analysis-progress').textContent = 'Sorting counties by energy burden...';
+
+            // Sort all counties by energy burden descending
+            const sortedCounties = allCountyFeatures
                 .filter(f => f.properties && f.properties.energy_burden != null)
                 .sort((a, b) => b.properties.energy_burden - a.properties.energy_burden)
                 .slice(0, 100);
-            
-            console.log(`Found ${sortedTracts.length} top tracts`);
+
+            console.log(`Found ${sortedCounties.length} top counties`);
             console.log(`Checking against ${coopLayers.length} cooperatives`);
-            
+
             const results = [];
-            
+
             // Process in batches to avoid freezing
             const batchSize = 10;
-            for (let i = 0; i < sortedTracts.length; i += batchSize) {
-                const batch = sortedTracts.slice(i, i + batchSize);
-                document.getElementById('analysis-progress').textContent = 
-                    `Analyzing tracts ${i + 1}-${Math.min(i + batchSize, sortedTracts.length)} of ${sortedTracts.length}...`;
-                
-                // Use setTimeout to allow UI to update
+            for (let i = 0; i < sortedCounties.length; i += batchSize) {
+                const batch = sortedCounties.slice(i, i + batchSize);
+                document.getElementById('analysis-progress').textContent =
+                    `Analyzing counties ${i + 1}-${Math.min(i + batchSize, sortedCounties.length)} of ${sortedCounties.length}...`;
+
+                // Allow UI to update
                 await new Promise(resolve => setTimeout(resolve, 0));
-                
-                for (const tract of batch) {
-                    const servingCoops = findServingCooperativesFast(tract);
+
+                for (const county of batch) {
+                    const servingCoops = findServingCooperativesFast(county);
                     results.push({
                         rank: results.length + 1,
-                        geoid: tract.properties.GEOID,
-                        state: tract.properties.state_name || tract.properties.STATE || 'Unknown',
-                        burden: tract.properties.energy_burden,
+                        geoid: county.properties.GEOID,
+                        county_name: county.properties.county_name,
+                        state: county.properties.state_name || 'Unknown',
+                        burden: county.properties.energy_burden,
                         cooperatives: servingCoops
                     });
                 }
             }
-            
+
             displayTable(results);
         }
-        
-        // Faster cooperative finding using centroid
-        function findServingCooperativesFast(tractFeature) {
-            if (!tractFeature || !tractFeature.geometry || coopLayers.length === 0) {
+
+        // Find cooperatives serving a county using its centroid
+        function findServingCooperativesFast(countyFeature) {
+            if (!countyFeature || !countyFeature.geometry || coopLayers.length === 0) {
                 return [];
             }
-            
+
             try {
-                // Get tract centroid
-                const centroid = turf.centroid(tractFeature);
+                // Get county centroid
+                const centroid = turf.centroid(countyFeature);
                 const point = L.latLng(centroid.geometry.coordinates[1], centroid.geometry.coordinates[0]);
-                
+
                 const servingCoops = [];
-                
-                // Check if point is within any coop layer
+
                 for (const coopData of coopLayers) {
                     const bounds = coopData.layer.getBounds();
-                    
+
                     // Quick bounds check first
                     if (!bounds.contains(point)) continue;
-                    
-                    // More precise check - use Leaflet's built-in contains
-                    if (coopData.layer.getBounds().contains(point)) {
-                        // Additional check for multi-polygon holes
-                        const turfPoint = turf.point([point.lng, point.lat]);
-                        const coopGeoJSON = coopData.layer.toGeoJSON();
-                        
-                        if (turf.booleanPointInPolygon(turfPoint, coopGeoJSON)) {
-                            servingCoops.push(coopData.name);
-                        }
+
+                    // Precise point-in-polygon check
+                    const turfPoint = turf.point([point.lng, point.lat]);
+                    const coopGeoJSON = coopData.layer.toGeoJSON();
+
+                    if (turf.booleanPointInPolygon(turfPoint, coopGeoJSON)) {
+                        servingCoops.push(coopData.name);
                     }
                 }
-                
+
                 return servingCoops;
             } catch (error) {
                 console.warn('Error finding cooperatives:', error);
                 return [];
             }
         }
-        
+
         // Display results in table
         function displayTable(results) {
             const tableBody = document.getElementById('table-body');
             tableBody.innerHTML = '';
-            
+
             results.forEach(result => {
                 const row = document.createElement('tr');
                 row.dataset.geoid = result.geoid;
-                
-                const coopText = result.cooperatives.length > 0 
+
+                const coopText = result.cooperatives.length > 0
                     ? result.cooperatives.join(', ')
                     : 'No cooperative coverage';
-                
+
                 row.innerHTML = `
                     <td class="rank-cell">${result.rank}</td>
                     <td>${result.state}</td>
+                    <td>${result.county_name}</td>
                     <td>${result.geoid}</td>
-                    <td class="burden-cell">${(result.burden / 100).toFixed(2)}%</td>
+                    <td class="burden-cell">${result.burden}%</td>
                     <td class="${result.cooperatives.length === 0 ? 'no-coop' : 'coop-cell'}">${coopText}</td>
                 `;
-                
-                // Add click handler
+
+                // Add click handler to zoom to county on map
                 row.addEventListener('click', () => {
-                    // Remove previous highlight
                     document.querySelectorAll('#results-table tr.highlighted').forEach(r => {
                         r.classList.remove('highlighted');
                     });
-                    
-                    // Highlight clicked row
+
                     row.classList.add('highlighted');
-                    
-                    // Find and zoom to tract on map
-                    const layer = tractLayers.get(result.geoid);
+
+                    const layer = countyLayers.get(result.geoid);
                     if (layer) {
                         map.fitBounds(layer.getBounds(), { padding: [50, 50] });
                         layer.setStyle({ weight: 3, color: '#ff0000' });
@@ -811,68 +774,66 @@
                         }, 3000);
                     }
                 });
-                
+
                 tableBody.appendChild(row);
             });
-            
+
             // Show table, hide loading
             document.getElementById('table-loading').style.display = 'none';
             document.getElementById('results-table').style.display = 'table';
             document.getElementById('searchBox').style.display = 'block';
             document.getElementById('downloadCSV').style.display = 'inline-block';
-            
-            // Setup search
+
             setupSearch(results);
-            
-            // Setup CSV download
             setupCSVDownload(results);
-            
+
             console.log(`✓ Table populated with ${results.length} results`);
         }
-        
+
         // Search functionality
         function setupSearch(results) {
             const searchBox = document.getElementById('searchBox');
             const tableBody = document.getElementById('table-body');
-            
+
             searchBox.addEventListener('input', (e) => {
                 const searchTerm = e.target.value.toLowerCase();
                 const rows = tableBody.querySelectorAll('tr');
-                
+
                 rows.forEach(row => {
                     const text = row.textContent.toLowerCase();
                     row.style.display = text.includes(searchTerm) ? '' : 'none';
                 });
             });
         }
-        
+
         // CSV Download
         function setupCSVDownload(results) {
             document.getElementById('downloadCSV').addEventListener('click', () => {
-                const headers = ['Rank', 'State', 'Census Tract ID', 'Energy Burden (%)', 'Serving Cooperatives'];
+                const headers = ['Rank', 'State', 'County', 'County FIPS', 'Energy Burden (% of income)', 'Serving Cooperatives'];
                 const rows = results.map(r => [
                     r.rank,
                     r.state,
+                    r.county_name,
                     r.geoid,
-                    (r.burden / 100).toFixed(2),
+                    r.burden,
                     r.cooperatives.length > 0 ? r.cooperatives.join('; ') : 'No cooperative coverage'
                 ]);
-                
+
                 const csvContent = [
                     headers.join(','),
                     ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
                 ].join('\n');
-                
+
                 const blob = new Blob([csvContent], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'top_100_energy_burden_tracts.csv';
+                a.download = 'top_100_energy_burden_counties.csv';
                 a.click();
                 URL.revokeObjectURL(url);
             });
         }
-        
+
         // Event listeners for layer toggles
         document.getElementById('coopToggle').addEventListener('change', (e) => {
             e.target.checked ? map.addLayer(coopLayer) : map.removeLayer(coopLayer);
